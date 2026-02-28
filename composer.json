@@ -1,0 +1,18 @@
+{
+    "name": "seu-projeto/exchanges",
+    "description": "Integração unificada com múltiplas exchanges de criptomoedas",
+    "type": "library",
+    "require": {
+        "php": ">=8.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Exchanges\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    }
+}

@@ -1,0 +1,37 @@
+{
+    "USDT": {
+        "free": 10000.0,
+        "locked": 0,
+        "staked": 0
+    },
+    "BTC": {
+        "free": 1.5,
+        "locked": 0,
+        "staked": 0
+    },
+    "ETH": {
+        "free": 10.0,
+        "locked": 0,
+        "staked": 0
+    },
+    "BNB": {
+        "free": 50.0,
+        "locked": 0,
+        "staked": 0
+    },
+    "SOL": {
+        "free": 100.0,
+        "locked": 0,
+        "staked": 0
+    },
+    "ADA": {
+        "free": 5000.0,
+        "locked": 0,
+        "staked": 0
+    },
+    "BRL": {
+        "free": 50000.0,
+        "locked": 0,
+        "staked": 0
+    }
+}

@@ -1,0 +1,82 @@
+{
+    "BTCUSDT": {
+        "status": "TRADING",
+        "base": "BTC",
+        "quote": "USDT"
+    },
+    "ETHUSDT": {
+        "status": "TRADING",
+        "base": "ETH",
+        "quote": "USDT"
+    },
+    "BNBUSDT": {
+        "status": "TRADING",
+        "base": "BNB",
+        "quote": "USDT"
+    },
+    "SOLUSDT": {
+        "status": "TRADING",
+        "base": "SOL",
+        "quote": "USDT"
+    },
+    "ADAUSDT": {
+        "status": "TRADING",
+        "base": "ADA",
+        "quote": "USDT"
+    },
+    "XRPUSDT": {
+        "status": "TRADING",
+        "base": "XRP",
+        "quote": "USDT"
+    },
+    "DOGEUSDT": {
+        "status": "TRADING",
+        "base": "DOGE",
+        "quote": "USDT"
+    },
+    "DOTUSDT": {
+        "status": "TRADING",
+        "base": "DOT",
+        "quote": "USDT"
+    },
+    "MATICUSDT": {
+        "status": "TRADING",
+        "base": "MATIC",
+        "quote": "USDT"
+    },
+    "LINKUSDT": {
+        "status": "TRADING",
+        "base": "LINK",
+        "quote": "USDT"
+    },
+    "LTCUSDT": {
+        "status": "TRADING",
+        "base": "LTC",
+        "quote": "USDT"
+    },
+    "UNIUSDT": {
+        "status": "TRADING",
+        "base": "UNI",
+        "quote": "USDT"
+    },
+    "ATOMUSDT": {
+        "status": "TRADING",
+        "base": "ATOM",
+        "quote": "USDT"
+    },
+    "AVAXUSDT": {
+        "status": "TRADING",
+        "base": "AVAX",
+        "quote": "USDT"
+    },
+    "BTCBRL": {
+        "status": "TRADING",
+        "base": "BTC",
+        "quote": "BRL"
+    },
+    "ETHBRL": {
+        "status": "TRADING",
+        "base": "ETH",
+        "quote": "BRL"
+    }
+}
