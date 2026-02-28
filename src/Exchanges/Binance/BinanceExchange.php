@@ -1,10 +1,9 @@
 <?php
+namespace IsraelNogueira\ExchangeHub\Exchanges\Binance;
 
-namespace Exchanges\Exchanges\Binance;
-
-use Exchanges\Core\AbstractExchange;
-use Exchanges\DTOs\{TickerDTO, OrderBookDTO, OrderDTO, TradeDTO, BalanceDTO, CandleDTO, DepositDTO, WithdrawDTO, ExchangeInfoDTO};
-use Exchanges\Exceptions\{InvalidSymbolException, InvalidOrderException, InsufficientBalanceException};
+use IsraelNogueira\ExchangeHub\Core\AbstractExchange;
+use IsraelNogueira\ExchangeHub\DTOs\{TickerDTO,OrderBookDTO,OrderDTO,TradeDTO,BalanceDTO,CandleDTO,DepositDTO,WithdrawDTO,ExchangeInfoDTO};
+use IsraelNogueira\ExchangeHub\Exceptions\{InvalidOrderException,OrderNotFoundException};
 
 class BinanceExchange extends AbstractExchange
 {
@@ -13,17 +12,15 @@ class BinanceExchange extends AbstractExchange
 
     protected function configure(): void
     {
-        $this->name    = 'binance';
-        $this->baseUrl = $this->testnet ? BinanceConfig::TESTNET_URL : BinanceConfig::BASE_URL;
-        $this->signer  = new BinanceSigner($this->apiKey, $this->apiSecret);
+        $this->name       = 'binance';
+        $this->baseUrl    = $this->testnet ? BinanceConfig::TESTNET_URL : BinanceConfig::BASE_URL;
+        $this->signer     = new BinanceSigner($this->apiKey, $this->apiSecret);
         $this->normalizer = new BinanceNormalizer();
     }
 
     protected function buildHeaders(string $method, string $endpoint, array $params, array $body, bool $signed): array
     {
-        return $signed
-            ? $this->signer->getHeaders()
-            : ['Content-Type: application/json'];
+        return $signed ? $this->signer->getHeaders() : ['Content-Type: application/json'];
     }
 
     protected function signParams(array $params): array
@@ -36,9 +33,7 @@ class BinanceExchange extends AbstractExchange
         return $this->signer->signWithBody($params, $body);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // MARKET DATA
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── Market Data ───────────────────────────────────────────────────────────
 
     public function ping(): bool
     {
@@ -98,9 +93,8 @@ class BinanceExchange extends AbstractExchange
 
     public function getHistoricalTrades(string $symbol, int $limit = 100, ?int $fromId = null): array
     {
-        $params = ['symbol' => $symbol, 'limit' => $limit];
-        if ($fromId !== null) $params['fromId'] = $fromId;
-        $res = $this->get(BinanceConfig::HISTORICAL_TRADES, $params, true);
+        $params = $this->filterNulls(['symbol' => $symbol, 'limit' => $limit, 'fromId' => $fromId]);
+        $res    = $this->get(BinanceConfig::HISTORICAL_TRADES, $params, true);
         return array_map(fn($t) => $this->normalizer->trade($t, $symbol), $res);
     }
 
@@ -117,9 +111,7 @@ class BinanceExchange extends AbstractExchange
         return (float)($res['price'] ?? 0);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // ACCOUNT
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── Account ───────────────────────────────────────────────────────────────
 
     public function getAccountInfo(): array
     {
@@ -151,8 +143,7 @@ class BinanceExchange extends AbstractExchange
 
     public function getCommissionRates(): array
     {
-        $res = $this->get(BinanceConfig::TRADE_FEE, [], true);
-        return $res;
+        return $this->get(BinanceConfig::TRADE_FEE, [], true);
     }
 
     public function getDepositAddress(string $asset, ?string $network = null): DepositDTO
@@ -179,35 +170,35 @@ class BinanceExchange extends AbstractExchange
     public function withdraw(string $asset, string $address, float $amount, ?string $network = null, ?string $memo = null): WithdrawDTO
     {
         $params = $this->filterNulls([
-            'coin'          => strtoupper($asset),
-            'address'       => $address,
-            'addressTag'    => $memo,
-            'amount'        => $amount,
-            'network'       => $network,
+            'coin'       => strtoupper($asset),
+            'address'    => $address,
+            'addressTag' => $memo,
+            'amount'     => $amount,
+            'network'    => $network,
         ]);
-        $res = $this->post(BinanceConfig::WITHDRAW, [], $params, true);
-        // Binance retorna apenas o id; buscamos no histórico para montar o DTO
+        $res     = $this->post(BinanceConfig::WITHDRAW, [], $params, true);
         $history = $this->getWithdrawHistory($asset);
         foreach ($history as $w) {
-            if ($w->withdrawId === ($res['id'] ?? '')) return $w;
+            if ($w->withdrawId === ($res['id'] ?? '')) {
+                return $w;
+            }
         }
         return new WithdrawDTO($res['id'] ?? '', strtoupper($asset), $address, $memo, $network ?? '', $amount, 0, $amount, null, WithdrawDTO::STATUS_PENDING, time() * 1000, 'binance');
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TRADING
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── Trading ───────────────────────────────────────────────────────────────
 
     public function createOrder(string $symbol, string $side, string $type, float $quantity, ?float $price = null, ?float $stopPrice = null, ?string $timeInForce = 'GTC', ?string $clientOrderId = null): OrderDTO
     {
-        $params = $this->filterNulls([
+        $needsPrice = in_array(strtoupper($type), ['LIMIT', 'STOP_LOSS_LIMIT', 'TAKE_PROFIT_LIMIT']);
+        $params     = $this->filterNulls([
             'symbol'           => $symbol,
             'side'             => strtoupper($side),
             'type'             => strtoupper($type),
             'quantity'         => $quantity,
-            'price'            => in_array(strtoupper($type), ['LIMIT','STOP_LOSS_LIMIT','TAKE_PROFIT_LIMIT']) ? $price : null,
+            'price'            => $needsPrice ? $price : null,
             'stopPrice'        => $stopPrice,
-            'timeInForce'      => in_array(strtoupper($type), ['LIMIT','STOP_LOSS_LIMIT','TAKE_PROFIT_LIMIT']) ? ($timeInForce ?? 'GTC') : null,
+            'timeInForce'      => $needsPrice ? ($timeInForce ?? 'GTC') : null,
             'newClientOrderId' => $clientOrderId,
             'newOrderRespType' => 'FULL',
         ]);
@@ -217,29 +208,25 @@ class BinanceExchange extends AbstractExchange
 
     public function cancelOrder(string $symbol, string $orderId): OrderDTO
     {
-        $params = ['symbol' => $symbol, 'orderId' => $orderId];
-        $res    = $this->delete(BinanceConfig::ORDER, $params, true);
+        $res = $this->delete(BinanceConfig::ORDER, ['symbol' => $symbol, 'orderId' => $orderId], true);
         return $this->normalizer->order($res);
     }
 
     public function cancelAllOrders(string $symbol): array
     {
-        $params = ['symbol' => $symbol];
-        $res    = $this->delete(BinanceConfig::OPEN_ORDERS, $params, true);
+        $res = $this->delete(BinanceConfig::OPEN_ORDERS, ['symbol' => $symbol], true);
         return array_map(fn($o) => $this->normalizer->order($o), $res);
     }
 
     public function getOrder(string $symbol, string $orderId): OrderDTO
     {
-        $params = ['symbol' => $symbol, 'orderId' => $orderId];
-        $res    = $this->get(BinanceConfig::ORDER, $params, true);
+        $res = $this->get(BinanceConfig::ORDER, ['symbol' => $symbol, 'orderId' => $orderId], true);
         return $this->normalizer->order($res);
     }
 
     public function getOpenOrders(?string $symbol = null): array
     {
-        $params = $this->filterNulls(['symbol' => $symbol]);
-        $res    = $this->get(BinanceConfig::OPEN_ORDERS, $params, true);
+        $res = $this->get(BinanceConfig::OPEN_ORDERS, $this->filterNulls(['symbol' => $symbol]), true);
         return array_map(fn($o) => $this->normalizer->order($o), $res);
     }
 
@@ -259,7 +246,6 @@ class BinanceExchange extends AbstractExchange
 
     public function editOrder(string $symbol, string $orderId, ?float $price = null, ?float $quantity = null): OrderDTO
     {
-        // Binance não suporta edição direta — cancela e recria
         $original = $this->getOrder($symbol, $orderId);
         $this->cancelOrder($symbol, $orderId);
         return $this->createOrder(
@@ -275,34 +261,22 @@ class BinanceExchange extends AbstractExchange
 
     public function createOCOOrder(string $symbol, string $side, float $quantity, float $price, float $stopPrice, float $stopLimitPrice): array
     {
-        $params = [
-            'symbol'            => $symbol,
-            'side'              => strtoupper($side),
-            'quantity'          => $quantity,
-            'price'             => $price,
-            'stopPrice'         => $stopPrice,
-            'stopLimitPrice'    => $stopLimitPrice,
-            'stopLimitTimeInForce' => 'GTC',
-        ];
-        $res = $this->post(BinanceConfig::ORDER_OCO, [], $params, true);
+        $params = ['symbol' => $symbol, 'side' => strtoupper($side), 'quantity' => $quantity, 'price' => $price, 'stopPrice' => $stopPrice, 'stopLimitPrice' => $stopLimitPrice, 'stopLimitTimeInForce' => 'GTC'];
+        $res    = $this->post(BinanceConfig::ORDER_OCO, [], $params, true);
         return [
             'oco_group_id' => $res['orderListId'] ?? null,
             'limit_order'  => isset($res['orders'][0]) ? $this->getOrder($symbol, (string)$res['orders'][0]['orderId']) : null,
             'stop_order'   => isset($res['orders'][1]) ? $this->getOrder($symbol, (string)$res['orders'][1]['orderId']) : null,
-            'raw'          => $res,
         ];
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // STAKING
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── Staking ───────────────────────────────────────────────────────────────
 
     public function stakeAsset(string $asset, float $amount): array
     {
-        $products = $this->get(BinanceConfig::STAKING_PRODUCT_LIST, ['product' => 'STAKING', 'asset' => strtoupper($asset)], true);
+        $products  = $this->get(BinanceConfig::STAKING_PRODUCT_LIST, ['product' => 'STAKING', 'asset' => strtoupper($asset)], true);
         $productId = $products[0]['projectId'] ?? null;
-        if (!$productId) throw new InvalidOrderException("Nenhum produto de staking encontrado para {$asset}", 'binance');
-
+        if (!$productId) throw new InvalidOrderException("Produto staking não encontrado para {$asset}", 'binance');
         $res = $this->post(BinanceConfig::STAKING_PURCHASE, [], ['product' => 'STAKING', 'productId' => $productId, 'amount' => $amount], true);
         return ['asset' => strtoupper($asset), 'staked' => $amount, 'position_id' => $res['positionId'] ?? null, 'status' => 'STAKED'];
     }
@@ -312,39 +286,18 @@ class BinanceExchange extends AbstractExchange
         $positions = $this->getStakingPositions();
         $position  = null;
         foreach ($positions as $p) {
-            if (strtoupper($p['asset'] ?? '') === strtoupper($asset)) { $position = $p; break; }
+            if (strtoupper($p['asset'] ?? '') === strtoupper($asset)) {
+                $position = $p;
+                break;
+            }
         }
-        if (!$position) throw new InvalidOrderException("Posição de staking não encontrada para {$asset}", 'binance');
-
-        $res = $this->post(BinanceConfig::STAKING_REDEEM, [], ['product' => 'STAKING', 'productId' => $position['productId'], 'positionId' => $position['positionId'], 'amount' => $amount], true);
+        if (!$position) throw new InvalidOrderException("Posição staking não encontrada para {$asset}", 'binance');
+        $this->post(BinanceConfig::STAKING_REDEEM, [], ['product' => 'STAKING', 'productId' => $position['productId'], 'positionId' => $position['positionId'], 'amount' => $amount], true);
         return ['asset' => strtoupper($asset), 'unstaked' => $amount, 'status' => 'UNSTAKED'];
     }
 
     public function getStakingPositions(): array
     {
         return $this->get(BinanceConfig::STAKING_POSITION, ['product' => 'STAKING'], true);
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // EXTRAS BINANCE
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /** Converte saldo mínimo (dust) em BNB */
-    public function convertDustToBNB(array $assets): array
-    {
-        return $this->post(BinanceConfig::DUST_TRANSFER, [], ['asset' => $assets], true);
-    }
-
-    /** Histórico de dust convertido */
-    public function getDustLog(): array
-    {
-        return $this->get(BinanceConfig::DUST_LOG, [], true);
-    }
-
-    /** Detalhe de taxas por par */
-    public function getTradeFee(?string $symbol = null): array
-    {
-        $params = $this->filterNulls(['symbol' => $symbol]);
-        return $this->get(BinanceConfig::TRADE_FEE, $params, true);
     }
 }

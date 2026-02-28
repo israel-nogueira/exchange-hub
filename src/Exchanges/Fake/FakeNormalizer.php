@@ -1,107 +1,106 @@
 <?php
+namespace IsraelNogueira\ExchangeHub\Exchanges\Fake;
 
-namespace Exchanges\Exchanges\Fake;
-
-use Exchanges\DTOs\{TickerDTO, OrderBookDTO, OrderDTO, TradeDTO, BalanceDTO, CandleDTO, DepositDTO, WithdrawDTO, ExchangeInfoDTO};
+use IsraelNogueira\ExchangeHub\DTOs\{TickerDTO,OrderBookDTO,OrderDTO,TradeDTO,BalanceDTO,CandleDTO,DepositDTO,WithdrawDTO,ExchangeInfoDTO};
 
 class FakeNormalizer
 {
-    public function ticker(array $data): TickerDTO
+    public function ticker(array $d): TickerDTO
     {
         return new TickerDTO(
-            symbol:         $data['symbol'],
-            price:          (float) $data['price'],
-            bid:            (float) $data['bid'],
-            ask:            (float) $data['ask'],
-            open24h:        (float) $data['open_24h'],
-            high24h:        (float) $data['high_24h'],
-            low24h:         (float) $data['low_24h'],
-            volume24h:      (float) $data['volume_24h'],
-            quoteVolume24h: (float) ($data['quote_volume_24h'] ?? 0),
-            change24h:      (float) $data['change_24h'],
-            changePct24h:   (float) $data['change_pct_24h'],
-            timestamp:      (int)   $data['timestamp'],
+            symbol:         $d['symbol'],
+            price:          (float)$d['price'],
+            bid:            (float)$d['bid'],
+            ask:            (float)$d['ask'],
+            open24h:        (float)$d['open_24h'],
+            high24h:        (float)$d['high_24h'],
+            low24h:         (float)$d['low_24h'],
+            volume24h:      (float)$d['volume_24h'],
+            quoteVolume24h: (float)($d['quote_volume_24h'] ?? 0),
+            change24h:      (float)$d['change_24h'],
+            changePct24h:   (float)$d['change_pct_24h'],
+            timestamp:      (int)$d['timestamp'],
             exchange:       'fake',
         );
     }
 
-    public function orderBook(array $data): OrderBookDTO
+    public function orderBook(array $d): OrderBookDTO
     {
         return new OrderBookDTO(
-            symbol:    $data['symbol'],
-            bids:      $data['bids'],
-            asks:      $data['asks'],
-            timestamp: (int) $data['timestamp'],
+            symbol:    $d['symbol'],
+            bids:      $d['bids'],
+            asks:      $d['asks'],
+            timestamp: (int)$d['timestamp'],
             exchange:  'fake',
         );
     }
 
-    public function order(array $data): OrderDTO
+    public function order(array $d): OrderDTO
     {
         return new OrderDTO(
-            orderId:       $data['id'],
-            clientOrderId: $data['client_order_id'] ?? '',
-            symbol:        $data['symbol'],
-            side:          $data['side'],
-            type:          $data['type'],
-            status:        $data['status'],
-            quantity:      (float) $data['quantity'],
-            executedQty:   (float) ($data['executed_qty'] ?? 0),
-            price:         (float) ($data['price'] ?? 0),
-            avgPrice:      (float) ($data['avg_price'] ?? 0),
-            stopPrice:     (float) ($data['stop_price'] ?? 0),
-            timeInForce:   $data['time_in_force'] ?? 'GTC',
-            fee:           (float) ($data['fee'] ?? 0),
-            feeAsset:      $data['fee_asset'] ?? 'USDT',
-            createdAt:     (int) $data['created_at'],
-            updatedAt:     (int) ($data['updated_at'] ?? $data['created_at']),
+            orderId:       $d['id'],
+            clientOrderId: $d['client_order_id'] ?? '',
+            symbol:        $d['symbol'],
+            side:          $d['side'],
+            type:          $d['type'],
+            status:        $d['status'],
+            quantity:      (float)$d['quantity'],
+            executedQty:   (float)($d['executed_qty'] ?? 0),
+            price:         (float)($d['price'] ?? 0),
+            avgPrice:      (float)($d['avg_price'] ?? 0),
+            stopPrice:     (float)($d['stop_price'] ?? 0),
+            timeInForce:   $d['time_in_force'] ?? 'GTC',
+            fee:           (float)($d['fee'] ?? 0),
+            feeAsset:      $d['fee_asset'] ?? 'USDT',
+            createdAt:     (int)$d['created_at'],
+            updatedAt:     (int)($d['updated_at'] ?? $d['created_at']),
             exchange:      'fake',
         );
     }
 
-    public function trade(array $data): TradeDTO
+    public function trade(array $d): TradeDTO
     {
         return new TradeDTO(
-            tradeId:   $data['id'],
-            orderId:   $data['order_id'] ?? '',
-            symbol:    $data['symbol'],
-            side:      $data['side'],
-            price:     (float) $data['price'],
-            quantity:  (float) $data['quantity'],
-            quoteQty:  (float) $data['quote_qty'],
-            fee:       (float) $data['fee'],
-            feeAsset:  $data['fee_asset'],
-            isMaker:   (bool)  $data['is_maker'],
-            timestamp: (int)   $data['timestamp'],
+            tradeId:   $d['id'],
+            orderId:   $d['order_id'] ?? '',
+            symbol:    $d['symbol'],
+            side:      $d['side'],
+            price:     (float)$d['price'],
+            quantity:  (float)$d['quantity'],
+            quoteQty:  (float)$d['quote_qty'],
+            fee:       (float)$d['fee'],
+            feeAsset:  $d['fee_asset'],
+            isMaker:   (bool)$d['is_maker'],
+            timestamp: (int)$d['timestamp'],
             exchange:  'fake',
         );
     }
 
-    public function balance(string $asset, array $data): BalanceDTO
+    public function balance(string $asset, array $d): BalanceDTO
     {
         return new BalanceDTO(
             asset:    $asset,
-            free:     (float) ($data['free']   ?? 0),
-            locked:   (float) ($data['locked'] ?? 0),
-            staked:   (float) ($data['staked'] ?? 0),
+            free:     (float)($d['free']   ?? 0),
+            locked:   (float)($d['locked'] ?? 0),
+            staked:   (float)($d['staked'] ?? 0),
             exchange: 'fake',
         );
     }
 
-    public function candle(string $symbol, string $interval, array $data): CandleDTO
+    public function candle(string $symbol, string $interval, array $d): CandleDTO
     {
         return new CandleDTO(
             symbol:      $symbol,
             interval:    $interval,
-            openTime:    (int)   $data['open_time'],
-            open:        (float) $data['open'],
-            high:        (float) $data['high'],
-            low:         (float) $data['low'],
-            close:       (float) $data['close'],
-            volume:      (float) $data['volume'],
-            quoteVolume: (float) ($data['quote_volume'] ?? 0),
-            trades:      (int)   ($data['trades'] ?? 0),
-            closeTime:   (int)   $data['close_time'],
+            openTime:    (int)$d['open_time'],
+            open:        (float)$d['open'],
+            high:        (float)$d['high'],
+            low:         (float)$d['low'],
+            close:       (float)$d['close'],
+            volume:      (float)$d['volume'],
+            quoteVolume: (float)($d['quote_volume'] ?? 0),
+            trades:      (int)($d['trades'] ?? 0),
+            closeTime:   (int)$d['close_time'],
             exchange:    'fake',
         );
     }
@@ -113,29 +112,29 @@ class FakeNormalizer
             address:   $address,
             memo:      null,
             network:   $network,
-            depositId: $history['id']     ?? null,
-            amount:    $history['amount'] ?? null,
-            txId:      $history['tx_id']  ?? null,
-            status:    $history['status'] ?? DepositDTO::STATUS_CONFIRMED,
+            depositId: $history['id']        ?? null,
+            amount:    $history['amount']    ?? null,
+            txId:      $history['tx_id']     ?? null,
+            status:    $history['status']    ?? DepositDTO::STATUS_CONFIRMED,
             timestamp: $history['timestamp'] ?? null,
             exchange:  'fake',
         );
     }
 
-    public function withdraw(array $data): WithdrawDTO
+    public function withdraw(array $d): WithdrawDTO
     {
         return new WithdrawDTO(
-            withdrawId: $data['id'],
-            asset:      $data['asset'],
-            address:    $data['address'],
-            memo:       $data['memo'] ?? null,
-            network:    $data['network'],
-            amount:     (float) $data['amount'],
-            fee:        (float) $data['fee'],
-            netAmount:  (float) $data['net_amount'],
-            txId:       $data['tx_id'] ?? null,
-            status:     $data['status'],
-            timestamp:  (int) $data['timestamp'],
+            withdrawId: $d['id'],
+            asset:      $d['asset'],
+            address:    $d['address'],
+            memo:       $d['memo'] ?? null,
+            network:    $d['network'],
+            amount:     (float)$d['amount'],
+            fee:        (float)$d['fee'],
+            netAmount:  (float)$d['net_amount'],
+            txId:       $d['tx_id'] ?? null,
+            status:     $d['status'],
+            timestamp:  (int)$d['timestamp'],
             exchange:   'fake',
         );
     }

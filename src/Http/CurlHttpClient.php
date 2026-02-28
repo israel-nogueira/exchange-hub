@@ -1,17 +1,17 @@
 <?php
 
-namespace Exchanges\Http;
+namespace IsraelNogueira\ExchangeHub\Http;
 
-use Exchanges\Exceptions\NetworkException;
-use Exchanges\Exceptions\RateLimitException;
-use Exchanges\Exceptions\AuthenticationException;
-use Exchanges\Exceptions\ExchangeException;
+use IsraelNogueira\ExchangeHub\Exceptions\NetworkException;
+use IsraelNogueira\ExchangeHub\Exceptions\RateLimitException;
+use IsraelNogueira\ExchangeHub\Exceptions\AuthenticationException;
+use IsraelNogueira\ExchangeHub\Exceptions\ExchangeException;
 
 class CurlHttpClient
 {
-    private int   $timeout     = 10;
-    private int   $maxRetries  = 3;
-    private float $retryDelay  = 0.5;
+    private int   $timeout    = 10;
+    private int   $maxRetries = 3;
+    private float $retryDelay = 0.5;
 
     public function __construct(array $options = [])
     {
@@ -49,10 +49,12 @@ class CurlHttpClient
             try {
                 return $this->execute($method, $url, $body, $headers, $exchange);
             } catch (RateLimitException $e) {
-                throw $e; // não faz retry em rate limit
+                throw $e;
             } catch (NetworkException $e) {
-                if ($attempt >= $this->maxRetries) throw $e;
-                usleep((int)($this->retryDelay * 1000000 * $attempt));
+                if ($attempt >= $this->maxRetries) {
+                    throw $e;
+                }
+                usleep((int) ($this->retryDelay * 1_000_000 * $attempt));
             }
         }
 
@@ -63,13 +65,11 @@ class CurlHttpClient
     {
         $ch = curl_init();
 
-        // Prepara body
         $bodyStr = null;
         if ($body !== null) {
             $bodyStr = is_string($body) ? $body : json_encode($body);
         }
 
-        // Headers
         $curlHeaders = [];
         foreach ($headers as $key => $value) {
             $curlHeaders[] = is_int($key) ? $value : "{$key}: {$value}";
@@ -90,23 +90,17 @@ class CurlHttpClient
             CURLOPT_HEADER         => true,
         ]);
 
-        match($method) {
-            'POST'   => curl_setopt_array($ch, [
-                CURLOPT_POST       => true,
-                CURLOPT_POSTFIELDS => $bodyStr ?? '',
-            ]),
-            'PUT'    => curl_setopt_array($ch, [
-                CURLOPT_CUSTOMREQUEST => 'PUT',
-                CURLOPT_POSTFIELDS    => $bodyStr ?? '',
-            ]),
+        match ($method) {
+            'POST'   => curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $bodyStr ?? '']),
+            'PUT'    => curl_setopt_array($ch, [CURLOPT_CUSTOMREQUEST => 'PUT', CURLOPT_POSTFIELDS => $bodyStr ?? '']),
             'DELETE' => curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE'),
             default  => null,
         };
 
-        $raw      = curl_exec($ch);
-        $errno    = curl_errno($ch);
-        $error    = curl_error($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $raw        = curl_exec($ch);
+        $errno      = curl_errno($ch);
+        $error      = curl_error($ch);
+        $httpCode   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
         curl_close($ch);
 
@@ -124,10 +118,10 @@ class CurlHttpClient
 
     private function handleHttpError(int $code, array $response, string $raw, string $exchange): void
     {
-        match(true) {
+        match (true) {
             $code === 401 => throw new AuthenticationException('Credenciais inválidas ou expiradas', $exchange),
             $code === 403 => throw new AuthenticationException('Acesso negado — verifique permissões da API Key', $exchange),
-            $code === 429 => throw new RateLimitException($exchange, (int)($response['retryAfter'] ?? 0)),
+            $code === 429 => throw new RateLimitException($exchange, (int) ($response['retryAfter'] ?? 0)),
             $code === 418 => throw new RateLimitException($exchange, 60),
             $code >= 500  => throw new NetworkException("Erro interno da exchange (HTTP {$code})", $exchange),
             $code >= 400  => throw new ExchangeException($this->extractError($response, $raw), $exchange, $code),
@@ -144,8 +138,12 @@ class CurlHttpClient
     {
         $name = strtolower($name);
         foreach ($headers as $key => $value) {
-            if (is_string($key) && strtolower($key) === $name) return true;
-            if (is_string($value) && str_starts_with(strtolower($value), $name . ':')) return true;
+            if (is_string($key) && strtolower($key) === $name) {
+                return true;
+            }
+            if (is_string($value) && str_starts_with(strtolower($value), $name . ':')) {
+                return true;
+            }
         }
         return false;
     }

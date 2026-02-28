@@ -1,13 +1,36 @@
 <?php
-namespace Exchanges\Exchanges\Bitget;
-use Exchanges\DTOs\{TickerDTO,OrderBookDTO,OrderDTO,TradeDTO,BalanceDTO,CandleDTO,DepositDTO,WithdrawDTO,ExchangeInfoDTO};
+namespace IsraelNogueira\ExchangeHub\Exchanges\Bitget;
+use IsraelNogueira\ExchangeHub\DTOs\{TickerDTO,OrderBookDTO,OrderDTO,TradeDTO,BalanceDTO,CandleDTO,DepositDTO,WithdrawDTO,ExchangeInfoDTO};
+
 class BitgetNormalizer
 {
-    public function ticker(array $d): TickerDTO { return new TickerDTO(symbol:$d['symbol']??'',price:(float)($d['last']??$d['last_price']??$d['price']??0),bid:(float)($d['bid']??$d['best_bid']??0),ask:(float)($d['ask']??$d['best_ask']??0),open24h:(float)($d['open']??0),high24h:(float)($d['high']??$d['high_24h']??0),low24h:(float)($d['low']??$d['low_24h']??0),volume24h:(float)($d['volume']??$d['base_volume']??0),quoteVolume24h:(float)($d['quote_volume']??0),change24h:0,changePct24h:(float)($d['change_percentage']??$d['priceChangePercent']??0),timestamp:time()*1000,exchange:'bitget'); }
-    public function orderBook(string $symbol, array $d): OrderBookDTO { return new OrderBookDTO(symbol:$symbol,bids:array_map(fn($b)=>[(float)($b[0]??$b['price']??0),(float)($b[1]??$b['amount']??0)],$d['bids']??[]),asks:array_map(fn($a)=>[(float)($a[0]??$a['price']??0),(float)($a[1]??$a['amount']??0)],$d['asks']??[]),timestamp:time()*1000,exchange:'bitget'); }
-    public function order(array $d): OrderDTO { return new OrderDTO(orderId:(string)($d['id']??$d['order_id']??$d['orderId']??''),clientOrderId:$d['client_oid']??$d['clientOid']??'',symbol:$d['symbol']??$d['pair']??'',side:strtoupper($d['side']??'BUY'),type:strtoupper($d['type']??$d['order_type']??'LIMIT'),status:OrderDTO::STATUS_OPEN,quantity:(float)($d['amount']??$d['qty']??$d['size']??0),executedQty:(float)($d['executed_amount']??$d['filled']??0),price:(float)($d['price']??$d['limit_price']??0),avgPrice:(float)($d['avg_execution_price']??$d['avg_price']??0),stopPrice:0,timeInForce:'GTC',fee:(float)($d['fee']??0),feeAsset:'',createdAt:time()*1000,updatedAt:time()*1000,exchange:'bitget'); }
-    public function balance(string $asset, array $d): BalanceDTO { return new BalanceDTO(asset:$asset,free:(float)($d['available']??$d['free']??$d['amount']??0),locked:(float)($d['reserved']??$d['locked']??$d['on_hold']??0),staked:0,exchange:'bitget'); }
-    public function candle(string $symbol, string $interval, array $d): CandleDTO { return new CandleDTO(symbol:$symbol,interval:$interval,openTime:(int)($d[0]??$d['t']??0)*1000,open:(float)($d[1]??$d['o']??0),high:(float)($d[2]??$d['h']??0),low:(float)($d[3]??$d['l']??0),close:(float)($d[4]??$d['c']??0),volume:(float)($d[5]??$d['v']??0),quoteVolume:0,trades:0,closeTime:(int)($d[0]??0)*1000+3600000,exchange:'bitget'); }
-    public function depositAddress(string $asset, array $d): DepositDTO { return new DepositDTO(asset:$asset,address:$d['address']??'',memo:$d['tag']??$d['memo']??null,network:$d['network']??$d['chain']??'',depositId:null,amount:null,txId:null,status:DepositDTO::STATUS_CONFIRMED,timestamp:null,exchange:'bitget'); }
-    public function withdraw(array $d): WithdrawDTO { $a=(float)($d['amount']??0);$f=(float)($d['fee']??$d['fees']??0); return new WithdrawDTO(withdrawId:(string)($d['id']??$d['wdId']??''),asset:$d['currency']??$d['coin']??$d['ccy']??'',address:$d['address']??'',memo:$d['memo']??null,network:$d['network']??'',amount:$a,fee:$f,netAmount:$a-$f,txId:$d['tx_id']??$d['txId']??null,status:WithdrawDTO::STATUS_PENDING,timestamp:time()*1000,exchange:'bitget'); }
+    public function ticker(array $d): TickerDTO
+    {
+        return new TickerDTO(
+            symbol:         $d['symbol'] ?? $d['currency_pair'] ?? '',
+            price:          (float)($d['last'] ?? $d['close'] ?? 0),
+            bid:            (float)($d['bid'] ?? $d['highest_bid'] ?? 0),
+            ask:            (float)($d['ask'] ?? $d['lowest_ask'] ?? 0),
+            open24h:        0,
+            high24h:        (float)($d['high'] ?? $d['high_24h'] ?? 0),
+            low24h:         (float)($d['low'] ?? $d['low_24h'] ?? 0),
+            volume24h:      (float)($d['base_volume'] ?? $d['volume'] ?? 0),
+            quoteVolume24h: (float)($d['quote_volume'] ?? 0),
+            change24h:      (float)($d['change' ] ?? 0),
+            changePct24h:   (float)($d['change_percentage'] ?? 0),
+            timestamp:      time() * 1000,
+            exchange:       'bitget',
+        );
+    }
+
+    public function balance(string $asset, array $d): BalanceDTO
+    {
+        return new BalanceDTO(
+            asset:    $asset,
+            free:     (float)($d['available'] ?? $d['free'] ?? $d['balance'] ?? 0),
+            locked:   (float)($d['locked'] ?? $d['freeze'] ?? 0),
+            staked:   0,
+            exchange: 'bitget',
+        );
+    }
 }

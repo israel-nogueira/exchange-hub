@@ -1,8 +1,9 @@
 <?php
-namespace Exchanges\Exchanges\Kraken;
-use Exchanges\Core\AbstractExchange;
-use Exchanges\DTOs\{TickerDTO,OrderBookDTO,OrderDTO,TradeDTO,BalanceDTO,CandleDTO,DepositDTO,WithdrawDTO,ExchangeInfoDTO};
-use Exchanges\Exceptions\OrderNotFoundException;
+namespace IsraelNogueira\ExchangeHub\Exchanges\Kraken;
+
+use IsraelNogueira\ExchangeHub\Core\AbstractExchange;
+use IsraelNogueira\ExchangeHub\DTOs\{TickerDTO,OrderBookDTO,OrderDTO,TradeDTO,BalanceDTO,CandleDTO,DepositDTO,WithdrawDTO,ExchangeInfoDTO};
+use IsraelNogueira\ExchangeHub\Exceptions\OrderNotFoundException;
 
 class KrakenExchange extends AbstractExchange
 {
@@ -17,10 +18,9 @@ class KrakenExchange extends AbstractExchange
         $this->normalizer = new KrakenNormalizer();
     }
 
-    /** Kraken usa form-encoded no POST privado com assinatura especial */
     private function privatePost(string $path, array $data = []): array
     {
-        $signed = $this->signer->sign($path, $data);
+        $signed  = $this->signer->sign($path, $data);
         $headers = [];
         foreach ($signed['headers'] as $k => $v) $headers[] = "{$k}: {$v}";
         $url = KrakenConfig::BASE_URL . $path;
@@ -39,6 +39,8 @@ class KrakenExchange extends AbstractExchange
         return $res['result'] ?? $res;
     }
 
+    // ── Market Data ───────────────────────────────────────────────────────────
+
     public function ping(): bool
     {
         $res = $this->publicGet(KrakenConfig::PING);
@@ -54,7 +56,7 @@ class KrakenExchange extends AbstractExchange
     public function getExchangeInfo(): ExchangeInfoDTO
     {
         $res = $this->publicGet(KrakenConfig::ASSET_PAIRS);
-        return new ExchangeInfoDTO('Kraken','ONLINE',array_keys($res),0.0016,0.0026,[],[],time()*1000);
+        return new ExchangeInfoDTO('Kraken', 'ONLINE', array_keys($res), 0.0016, 0.0026, [], [], time() * 1000);
     }
 
     public function getSymbols(): array
@@ -87,7 +89,10 @@ class KrakenExchange extends AbstractExchange
     {
         $res    = $this->publicGet(KrakenConfig::TRADES, ['pair' => $symbol]);
         $trades = reset($res);
-        return array_map(fn($t) => new TradeDTO('', '', $symbol, $t[3]==='b'?'BUY':'SELL', (float)$t[0], (float)$t[1], 0, 0, '', false, (int)($t[2]*1000), 'kraken'), array_slice((array)$trades, 0, $limit));
+        return array_map(
+            fn($t) => new TradeDTO('', '', $symbol, $t[3] === 'b' ? 'BUY' : 'SELL', (float)$t[0], (float)$t[1], 0, 0, '', false, (int)($t[2] * 1000), 'kraken'),
+            array_slice((array)$trades, 0, $limit)
+        );
     }
 
     public function getHistoricalTrades(string $symbol, int $limit = 100, ?int $fromId = null): array
@@ -97,19 +102,18 @@ class KrakenExchange extends AbstractExchange
 
     public function getCandles(string $symbol, string $interval = '1h', int $limit = 100, ?int $startTime = null, ?int $endTime = null): array
     {
-        $intervalMap = ['1m'=>1,'5m'=>5,'15m'=>15,'30m'=>30,'1h'=>60,'4h'=>240,'1d'=>1440,'1w'=>10080,'1M'=>21600];
-        $minutes     = $intervalMap[$interval] ?? 60;
-        $params      = ['pair' => $symbol, 'interval' => $minutes];
+        $im      = ['1m'=>1,'5m'=>5,'15m'=>15,'30m'=>30,'1h'=>60,'4h'=>240,'1d'=>1440,'1w'=>10080,'1M'=>21600];
+        $minutes = $im[$interval] ?? 60;
+        $params  = ['pair' => $symbol, 'interval' => $minutes];
         if ($startTime) $params['since'] = (int)($startTime / 1000);
-        $res    = $this->publicGet(KrakenConfig::OHLC, $params);
-        $candles= reset($res);
+        $res     = $this->publicGet(KrakenConfig::OHLC, $params);
+        $candles = reset($res);
         return array_map(fn($c) => $this->normalizer->candle($symbol, $interval, $c), array_slice((array)$candles, -$limit));
     }
 
-    public function getAvgPrice(string $symbol): float
-    {
-        return $this->getTicker($symbol)->price;
-    }
+    public function getAvgPrice(string $symbol): float { return $this->getTicker($symbol)->price; }
+
+    // ── Account ───────────────────────────────────────────────────────────────
 
     public function getAccountInfo(): array { return $this->privatePost(KrakenConfig::TRADE_BALANCE); }
 
@@ -126,7 +130,7 @@ class KrakenExchange extends AbstractExchange
     public function getBalance(string $asset): BalanceDTO
     {
         $res = $this->privatePost(KrakenConfig::BALANCE);
-        return $this->normalizer->balance($asset, (float)($res[$asset] ?? $res['X'.strtoupper($asset)] ?? 0));
+        return $this->normalizer->balance($asset, (float)($res[$asset] ?? $res['X' . strtoupper($asset)] ?? 0));
     }
 
     public function getCommissionRates(): array
@@ -159,24 +163,26 @@ class KrakenExchange extends AbstractExchange
     public function withdraw(string $asset, string $address, float $amount, ?string $network = null, ?string $memo = null): WithdrawDTO
     {
         $res = $this->privatePost(KrakenConfig::WITHDRAW, ['asset' => strtoupper($asset), 'key' => $address, 'amount' => $amount]);
-        return new WithdrawDTO($res['refid'] ?? '', strtoupper($asset), $address, $memo, $network ?? '', $amount, 0, $amount, null, WithdrawDTO::STATUS_PENDING, time()*1000, 'kraken');
+        return new WithdrawDTO($res['refid'] ?? '', strtoupper($asset), $address, $memo, $network ?? '', $amount, 0, $amount, null, WithdrawDTO::STATUS_PENDING, time() * 1000, 'kraken');
     }
+
+    // ── Trading ───────────────────────────────────────────────────────────────
 
     public function createOrder(string $symbol, string $side, string $type, float $quantity, ?float $price = null, ?float $stopPrice = null, ?string $timeInForce = 'GTC', ?string $clientOrderId = null): OrderDTO
     {
-        $typeMap = ['MARKET'=>'market','LIMIT'=>'limit','STOP_LIMIT'=>'stop-loss-limit','STOP_MARKET'=>'stop-loss'];
-        $params  = ['pair'=>$symbol,'type'=>strtolower($side),'ordertype'=>$typeMap[strtoupper($type)]??'limit','volume'=>$quantity];
-        if ($price)      $params['price']  = $price;
-        if ($stopPrice)  $params['price2'] = $stopPrice;
-        if ($clientOrderId) $params['userref'] = $clientOrderId;
+        $typeMap = ['LIMIT'=>'limit','MARKET'=>'market','STOP_LOSS_LIMIT'=>'stop-loss-limit','TAKE_PROFIT_LIMIT'=>'take-profit-limit'];
+        $params  = ['pair' => $symbol, 'type' => strtolower($side), 'ordertype' => $typeMap[strtoupper($type)] ?? 'limit', 'volume' => $quantity];
+        if ($price)     $params['price']  = $price;
+        if ($stopPrice) $params['price2'] = $stopPrice;
         $res = $this->privatePost(KrakenConfig::ADD_ORDER, $params);
-        $id  = $res['txid'][0] ?? 'unknown';
-        return $this->getOrder($symbol, $id);
+        $ids = $res['txid'] ?? [];
+        if (empty($ids)) throw new \RuntimeException('Kraken: nenhum orderId retornado');
+        return $this->getOrder($symbol, $ids[0]);
     }
 
     public function cancelOrder(string $symbol, string $orderId): OrderDTO
     {
-        try { $order = $this->getOrder($symbol, $orderId); } catch (\Exception $e) { throw new OrderNotFoundException($orderId, 'kraken'); }
+        $order = $this->getOrder($symbol, $orderId);
         $this->privatePost(KrakenConfig::CANCEL_ORDER, ['txid' => $orderId]);
         return $order;
     }
@@ -197,39 +203,27 @@ class KrakenExchange extends AbstractExchange
 
     public function getOpenOrders(?string $symbol = null): array
     {
-        $res    = $this->privatePost(KrakenConfig::OPEN_ORDERS, ['trades' => true]);
-        $orders = $res['open'] ?? [];
-        $result = [];
-        foreach ($orders as $id => $order) {
-            $dto = $this->normalizer->order($id, $order);
-            if (!$symbol || $dto->symbol === $symbol) $result[] = $dto;
-        }
-        return $result;
+        $res  = $this->privatePost(KrakenConfig::OPEN_ORDERS, ['trades' => true]);
+        $list = $res['open'] ?? [];
+        return array_map(fn($id, $o) => $this->normalizer->order($id, $o), array_keys($list), $list);
     }
 
     public function getOrderHistory(string $symbol, int $limit = 100, ?int $startTime = null, ?int $endTime = null): array
     {
-        $res    = $this->privatePost(KrakenConfig::CLOSED_ORDERS, ['trades' => true]);
-        $orders = $res['closed'] ?? [];
-        $result = [];
-        foreach ($orders as $id => $order) {
-            $dto = $this->normalizer->order($id, $order);
-            if ($dto->symbol === $symbol) $result[] = $dto;
-        }
-        return array_slice($result, 0, $limit);
+        $res  = $this->privatePost(KrakenConfig::CLOSED_ORDERS, ['trades' => true]);
+        $list = $res['closed'] ?? [];
+        return array_map(fn($id, $o) => $this->normalizer->order($id, $o), array_keys($list), array_slice($list, 0, $limit, true));
     }
 
     public function getMyTrades(string $symbol, int $limit = 100, ?int $startTime = null, ?int $endTime = null): array
     {
         $res    = $this->privatePost(KrakenConfig::TRADES_HISTORY, ['trades' => true]);
         $trades = $res['trades'] ?? [];
-        $result = [];
-        foreach ($trades as $id => $t) {
-            if ($t['pair'] === $symbol) {
-                $result[] = new TradeDTO($id, $t['ordertxid'] ?? '', $symbol, strtoupper($t['type']), (float)$t['price'], (float)$t['vol'], (float)$t['cost'], (float)$t['fee'], $t['feeabcur'] ?? '', ($t['misc'] ?? '') === 'maker', (int)($t['time']*1000), 'kraken');
-            }
-        }
-        return array_slice($result, 0, $limit);
+        return array_map(fn($id, $t) => new TradeDTO(
+            $id, $t['ordertxid'] ?? '', $t['pair'] ?? $symbol, strtoupper($t['type'] ?? ''),
+            (float)$t['price'], (float)$t['vol'], (float)$t['cost'],
+            (float)$t['fee'], '', $t['maker'] ?? false, (int)($t['time'] * 1000), 'kraken'
+        ), array_keys($trades), array_slice($trades, 0, $limit, true));
     }
 
     public function editOrder(string $symbol, string $orderId, ?float $price = null, ?float $quantity = null): OrderDTO
@@ -237,21 +231,15 @@ class KrakenExchange extends AbstractExchange
         $params = ['txid' => $orderId];
         if ($price)    $params['price']  = $price;
         if ($quantity) $params['volume'] = $quantity;
-        $res = $this->privatePost(KrakenConfig::EDIT_ORDER, $params);
+        $res    = $this->privatePost(KrakenConfig::EDIT_ORDER, $params);
         return $this->getOrder($symbol, $res['txid'] ?? $orderId);
     }
 
     public function createOCOOrder(string $symbol, string $side, float $quantity, float $price, float $stopPrice, float $stopLimitPrice): array
     {
         $limit = $this->createOrder($symbol, $side, 'LIMIT', $quantity, $price);
-        $stop  = $this->createOrder($symbol, $side, 'STOP_LIMIT', $quantity, $stopLimitPrice, $stopPrice);
+        $stop  = $this->createOrder($symbol, $side, 'STOP_LOSS_LIMIT', $quantity, $stopLimitPrice, $stopPrice);
         return ['oco_group_id' => null, 'limit_order' => $limit, 'stop_order' => $stop];
-    }
-
-    /** Dead man's switch — cancela tudo após X segundos */
-    public function cancelAllAfter(int $timeout): array
-    {
-        return $this->privatePost(KrakenConfig::CANCEL_AFTER, ['timeout' => $timeout]);
     }
 
     public function stakeAsset(string $asset, float $amount): array
@@ -262,12 +250,12 @@ class KrakenExchange extends AbstractExchange
 
     public function unstakeAsset(string $asset, float $amount): array
     {
-        $res = $this->privatePost(KrakenConfig::UNSTAKE_ASSET, ['asset' => strtoupper($asset), 'amount' => $amount]);
+        $res = $this->privatePost(KrakenConfig::UNSTAKE_ASSET, ['asset' => strtoupper($asset) . '.S', 'amount' => $amount]);
         return ['asset' => strtoupper($asset), 'unstaked' => $amount, 'refid' => $res['refid'] ?? null, 'status' => 'UNSTAKED'];
     }
 
     public function getStakingPositions(): array
     {
-        return $this->privatePost(KrakenConfig::STAKE_PENDING);
+        return $this->privatePost(KrakenConfig::STAKING_TXNS);
     }
 }

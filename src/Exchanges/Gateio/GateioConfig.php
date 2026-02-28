@@ -1,9 +1,7 @@
 <?php
-namespace Exchanges\Exchanges\Gateio;
+namespace IsraelNogueira\ExchangeHub\Exchanges\Gateio;
+
 class GateioConfig
 {
-    const BASE_URL = 'https://api.gateio.ws';
-    // Endpoints adicionados conforme necessidade
-    const TICKER   = '/api';
-    const ORDERS   = '/api';
+    const BASE_URL = 'https://api.gateio.ws/api/v4';
 }

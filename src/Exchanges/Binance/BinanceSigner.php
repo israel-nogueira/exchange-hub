@@ -1,6 +1,6 @@
 <?php
 
-namespace Exchanges\Exchanges\Binance;
+namespace IsraelNogueira\ExchangeHub\Exchanges\Binance;
 
 /**
  * Binance usa HMAC-SHA256.
@@ -14,9 +14,6 @@ class BinanceSigner
         private string $apiSecret
     ) {}
 
-    /**
-     * Assina array de parâmetros — retorna array com 'signature' adicionada.
-     */
     public function signParams(array $params): array
     {
         $params['timestamp'] = $this->timestamp();
@@ -25,15 +22,12 @@ class BinanceSigner
         return $params;
     }
 
-    /**
-     * Assina request com body JSON — assinatura vai na query string.
-     */
     public function signWithBody(array $queryParams, array $body): array
     {
         $queryParams['timestamp'] = $this->timestamp();
-        $queryString  = http_build_query($queryParams);
-        $bodyString   = !empty($body) ? json_encode($body) : '';
-        $payload      = $queryString . $bodyString;
+        $queryString              = http_build_query($queryParams);
+        $bodyString               = !empty($body) ? json_encode($body) : '';
+        $payload                  = $queryString . $bodyString;
         $queryParams['signature'] = hash_hmac('sha256', $payload, $this->apiSecret);
         return [$queryParams, $body];
     }
@@ -42,7 +36,7 @@ class BinanceSigner
     {
         return [
             'X-MBX-APIKEY' => $this->apiKey,
-            'Content-Type' => 'application/json',
+            'Content-Type'  => 'application/json',
         ];
     }
 

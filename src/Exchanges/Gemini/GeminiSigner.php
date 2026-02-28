@@ -1,14 +1,23 @@
 <?php
-namespace Exchanges\Exchanges\Gemini;
-/** Gemini: HMAC-SHA384 payload base64 */
+namespace IsraelNogueira\ExchangeHub\Exchanges\Gemini;
+
 class GeminiSigner
 {
-    public function __construct(private string $apiKey, private string $secret ) {}
+    public function __construct(
+        private string $apiKey,
+        private string $apiSecret
+    ) {}
 
-    public function getHeaders(string $path, array $payload=[]): array {
-        $payload['nonce'] = (string)(int)(microtime(true)*1000);
-        $b64  = base64_encode(json_encode($payload));
-        $sig  = hash_hmac('sha384',$b64,$this->secret);
-        return ['X-GEMINI-APIKEY'=>$this->apiKey,'X-GEMINI-PAYLOAD'=>$b64,'X-GEMINI-SIGNATURE'=>$sig,'Content-Type'=>'text/plain'];
+    public function getHeaders(string $method, string $path, string $body = ''): array
+    {
+        $ts  = (string)(int)(microtime(true) * 1000);
+        $str = $ts . $method . $path . $body;
+        $sig = hash_hmac('sha256', $str, $this->apiSecret);
+        return [
+            'X-API-KEY'   => $this->apiKey,
+            'X-SIGNATURE' => $sig,
+            'X-TIMESTAMP' => $ts,
+            'Content-Type'=> 'application/json',
+        ];
     }
 }

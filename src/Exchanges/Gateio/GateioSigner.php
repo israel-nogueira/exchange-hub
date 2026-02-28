@@ -1,15 +1,23 @@
 <?php
-namespace Exchanges\Exchanges\Gateio;
-/** Gateio: HMAC-SHA512 */
+namespace IsraelNogueira\ExchangeHub\Exchanges\Gateio;
+
 class GateioSigner
 {
-    public function __construct(private string $apiKey, private string $secret ) {}
+    public function __construct(
+        private string $apiKey,
+        private string $apiSecret
+    ) {}
 
-    public function getHeaders(string $method, string $path, string $query='', string $body=''): array {
-        $ts      = (string)time();
-        $bodyHash= hash('sha512',$body);
-        $pre     = $method."\n".$path."\n".$query."\n".$bodyHash."\n".$ts;
-        $sig     = hash_hmac('sha512',$pre,$this->secret);
-        return ['KEY'=>$this->apiKey,'Timestamp'=>$ts,'SIGN'=>$sig,'Content-Type'=>'application/json'];
+    public function getHeaders(string $method, string $path, string $body = ''): array
+    {
+        $ts  = (string)(int)(microtime(true) * 1000);
+        $str = $ts . $method . $path . $body;
+        $sig = hash_hmac('sha256', $str, $this->apiSecret);
+        return [
+            'X-API-KEY'   => $this->apiKey,
+            'X-SIGNATURE' => $sig,
+            'X-TIMESTAMP' => $ts,
+            'Content-Type'=> 'application/json',
+        ];
     }
 }

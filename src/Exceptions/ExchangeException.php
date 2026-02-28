@@ -1,22 +1,22 @@
 <?php
 
-namespace Exchanges\Exceptions;
+namespace IsraelNogueira\ExchangeHub\Exceptions;
 
-// ─── Base ───────────────────────────────────────────────────────────────────
+// ─── Base ────────────────────────────────────────────────────────────────────
 
 class ExchangeException extends \RuntimeException
 {
     public function __construct(
-        string           $message,
-        public readonly  string $exchange = '',
-        int              $code = 0,
-        ?\Throwable      $previous = null
+        string          $message,
+        public readonly string $exchange = '',
+        int             $code = 0,
+        ?\Throwable     $previous = null
     ) {
         parent::__construct("[{$exchange}] {$message}", $code, $previous);
     }
 }
 
-// ─── Específicas ────────────────────────────────────────────────────────────
+// ─── Específicas ─────────────────────────────────────────────────────────────
 
 class InsufficientBalanceException extends ExchangeException
 {
@@ -55,7 +55,7 @@ class AuthenticationException extends ExchangeException
 
 class RateLimitException extends ExchangeException
 {
-    public function __construct(string $exchange = '', int $retryAfter = 0)
+    public function __construct(string $exchange = '', public readonly int $retryAfter = 0)
     {
         $msg = "Rate limit atingido" . ($retryAfter > 0 ? ". Tente novamente em {$retryAfter}s" : '');
         parent::__construct($msg, $exchange);

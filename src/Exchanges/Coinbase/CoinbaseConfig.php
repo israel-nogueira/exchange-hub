@@ -1,17 +1,12 @@
 <?php
-namespace Exchanges\Exchanges\Coinbase;
-class CoinbaseConfig
-{
-    const BASE_URL='https://api.coinbase.com';
-    const API='/api/v3/brokerage';
-    const PRODUCTS=self::API.'/products';
-    const ORDERS=self::API.'/orders';
-    const ORDERS_BATCH=self::API.'/orders/batch_cancel';
-    const FILLS=self::API.'/orders/historical/fills';
-    const BEST_BID_ASK=self::API.'/best_bid_ask';
-    const ACCOUNT=self::API.'/accounts';
-    const PORTFOLIOS=self::API.'/portfolios';
-    const TRANSACTION_SUMMARY=self::API.'/transaction_summary';
-    const CONVERT=self::API.'/convert/quote';
-    const COMMIT_CONVERT=self::API.'/convert/trade';
+namespace IsraelNogueira\ExchangeHub\Exchanges\Coinbase;
+class CoinbaseConfig {
+    const BASE_URL = 'https://api.coinbase.com/api/v3/brokerage';
+    const PRODUCTS           = '/products';
+    const BEST_BID_ASK       = '/best_bid_ask';
+    const ACCOUNT            = '/accounts';
+    const ORDERS             = '/orders';
+    const ORDERS_BATCH       = '/orders/batch_cancel';
+    const FILLS              = '/orders/historical/fills';
+    const TRANSACTION_SUMMARY= '/transaction_summary';
 }

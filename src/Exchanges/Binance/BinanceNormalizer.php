@@ -1,8 +1,6 @@
 <?php
-
-namespace Exchanges\Exchanges\Binance;
-
-use Exchanges\DTOs\{TickerDTO, OrderBookDTO, OrderDTO, TradeDTO, BalanceDTO, CandleDTO, DepositDTO, WithdrawDTO, ExchangeInfoDTO};
+namespace IsraelNogueira\ExchangeHub\Exchanges\Binance;
+use IsraelNogueira\ExchangeHub\DTOs\{TickerDTO,OrderBookDTO,OrderDTO,TradeDTO,BalanceDTO,CandleDTO,DepositDTO,WithdrawDTO,ExchangeInfoDTO};
 
 class BinanceNormalizer
 {
@@ -20,19 +18,7 @@ class BinanceNormalizer
             quoteVolume24h: (float)($d['quoteVolume'] ?? 0),
             change24h:      (float)($d['priceChange'] ?? 0),
             changePct24h:   (float)($d['priceChangePercent'] ?? 0),
-            timestamp:      (int)  ($d['closeTime'] ?? time() * 1000),
-            exchange:       'binance',
-        );
-    }
-
-    public function tickerPrice(array $d): TickerDTO
-    {
-        return new TickerDTO(
-            symbol:         $d['symbol'],
-            price:          (float)$d['price'],
-            bid:            0, ask: 0, open24h: 0, high24h: 0, low24h: 0,
-            volume24h:      0, quoteVolume24h: 0, change24h: 0, changePct24h: 0,
-            timestamp:      time() * 1000,
+            timestamp:      (int)($d['closeTime'] ?? time() * 1000),
             exchange:       'binance',
         );
     }
@@ -58,7 +44,8 @@ class BinanceNormalizer
             'REJECTED'         => OrderDTO::STATUS_REJECTED,
             'EXPIRED'          => OrderDTO::STATUS_EXPIRED,
         ];
-
+        $execQty  = (float)($d['executedQty'] ?? 0);
+        $cumQuote = (float)($d['cummulativeQuoteQty'] ?? 0);
         return new OrderDTO(
             orderId:       (string)($d['orderId'] ?? ''),
             clientOrderId: $d['clientOrderId'] ?? '',
@@ -67,10 +54,9 @@ class BinanceNormalizer
             type:          $d['type'],
             status:        $statusMap[$d['status']] ?? $d['status'],
             quantity:      (float)($d['origQty'] ?? 0),
-            executedQty:   (float)($d['executedQty'] ?? 0),
+            executedQty:   $execQty,
             price:         (float)($d['price'] ?? 0),
-            avgPrice:      (float)($d['avgPrice'] ?? $d['cummulativeQuoteQty'] > 0 && ($d['executedQty'] ?? 0) > 0
-                ? $d['cummulativeQuoteQty'] / $d['executedQty'] : 0),
+            avgPrice:      ($execQty > 0 && $cumQuote > 0) ? $cumQuote / $execQty : (float)($d['avgPrice'] ?? 0),
             stopPrice:     (float)($d['stopPrice'] ?? 0),
             timeInForce:   $d['timeInForce'] ?? 'GTC',
             fee:           0,
@@ -128,6 +114,22 @@ class BinanceNormalizer
         );
     }
 
+    public function depositAddress(array $d): DepositDTO
+    {
+        return new DepositDTO(
+            asset:     $d['coin'],
+            address:   $d['address'],
+            memo:      $d['tag'] ?: null,
+            network:   $d['network'] ?? '',
+            depositId: null,
+            amount:    null,
+            txId:      null,
+            status:    DepositDTO::STATUS_CONFIRMED,
+            timestamp: null,
+            exchange:  'binance',
+        );
+    }
+
     public function deposit(array $d): DepositDTO
     {
         $statusMap = [0 => DepositDTO::STATUS_PENDING, 1 => DepositDTO::STATUS_CONFIRMED, 6 => DepositDTO::STATUS_CREDITED];
@@ -145,36 +147,11 @@ class BinanceNormalizer
         );
     }
 
-    public function depositAddress(array $d): DepositDTO
-    {
-        return new DepositDTO(
-            asset:     $d['coin'],
-            address:   $d['address'],
-            memo:      $d['tag'] ?: null,
-            network:   $d['network'] ?? '',
-            depositId: null,
-            amount:    null,
-            txId:      null,
-            status:    DepositDTO::STATUS_CONFIRMED,
-            timestamp: null,
-            exchange:  'binance',
-        );
-    }
-
     public function withdraw(array $d): WithdrawDTO
     {
-        $statusMap = [
-            0 => WithdrawDTO::STATUS_PENDING,
-            1 => WithdrawDTO::STATUS_CANCELLED,
-            2 => WithdrawDTO::STATUS_PENDING,
-            3 => WithdrawDTO::STATUS_PENDING,
-            4 => WithdrawDTO::STATUS_PROCESSING,
-            5 => WithdrawDTO::STATUS_FAILED,
-            6 => WithdrawDTO::STATUS_CONFIRMED,
-        ];
+        $statusMap = [0=>WithdrawDTO::STATUS_PENDING,1=>WithdrawDTO::STATUS_CANCELLED,2=>WithdrawDTO::STATUS_PENDING,3=>WithdrawDTO::STATUS_PENDING,4=>WithdrawDTO::STATUS_PROCESSING,5=>WithdrawDTO::STATUS_FAILED,6=>WithdrawDTO::STATUS_CONFIRMED];
         $amount = (float)($d['amount'] ?? 0);
         $fee    = (float)($d['transactionFee'] ?? 0);
-
         return new WithdrawDTO(
             withdrawId: $d['id'],
             asset:      $d['coin'],
@@ -193,10 +170,13 @@ class BinanceNormalizer
 
     public function exchangeInfo(array $d): ExchangeInfoDTO
     {
-        $symbols = array_map(fn($s) => $s['symbol'], array_filter($d['symbols'] ?? [], fn($s) => $s['status'] === 'TRADING'));
+        $symbols = array_map(
+            fn($s) => $s['symbol'],
+            array_filter($d['symbols'] ?? [], fn($s) => $s['status'] === 'TRADING')
+        );
         return new ExchangeInfoDTO(
             exchangeName: 'Binance',
-            status:       $d['timezone'] ? 'ONLINE' : 'UNKNOWN',
+            status:       'ONLINE',
             symbols:      array_values($symbols),
             makerFee:     0.001,
             takerFee:     0.001,

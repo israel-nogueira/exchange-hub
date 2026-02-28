@@ -1,9 +1,7 @@
 <?php
-namespace Exchanges\Exchanges\Bitstamp;
+namespace IsraelNogueira\ExchangeHub\Exchanges\Bitstamp;
+
 class BitstampConfig
 {
-    const BASE_URL = 'https://www.bitstamp.net';
-    // Endpoints adicionados conforme necessidade
-    const TICKER   = '/api';
-    const ORDERS   = '/api';
+    const BASE_URL = 'https://www.bitstamp.net/api/v2';
 }

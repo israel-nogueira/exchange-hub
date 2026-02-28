@@ -1,6 +1,5 @@
 <?php
-
-namespace Exchanges\Exchanges\Fake;
+namespace IsraelNogueira\ExchangeHub\Exchanges\Fake;
 
 class FakeLogs
 {
