@@ -1,11 +1,9 @@
 name: 🩺 Exchange API Health Check
 
 on:
-  # ── Agendado: todo dia às 08:00 UTC ──────────────────────────────────────────
   schedule:
     - cron: '0 8 * * *'
 
-  # ── Manual: rode quando quiser pelo GitHub Actions ───────────────────────────
   workflow_dispatch:
     inputs:
       open_issue_on_failure:
@@ -16,7 +14,7 @@ on:
 
 permissions:
   contents: read
-  issues: write   # necessário para abrir Issues automaticamente
+  issues: write
 
 jobs:
   health-check:
@@ -25,11 +23,11 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      # ── 1. Checkout ────────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── 2. Setup PHP ─────────────────────────────────────────────────────────
+      # ── 2. Setup PHP ───────────────────────────────────────────────────────────
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -37,167 +35,211 @@ jobs:
           extensions: curl, json
           coverage: none
 
-      # ── 3. Executa o health check ─────────────────────────────────────────────
+      # ── 3. Cria pasta de output e roda o health check ──────────────────────────
       - name: Run endpoint health check
         id: healthcheck
         run: |
-          php scripts/check-endpoints.php 2>&1 | tee check-output.txt
-          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
-        continue-on-error: true   # não quebra o workflow aqui — controle manual abaixo
+          mkdir -p ${{ github.workspace }}/reports
 
-      # ── 4. Extrai nomes das exchanges que falharam ────────────────────────────
-      - name: Parse failed exchanges
+          # Passa o diretório de output como argumento para o script
+          php scripts/check-endpoints.php ${{ github.workspace }}/reports
+          PHP_EXIT=$?
+
+          echo "exit_code=${PHP_EXIT}" >> $GITHUB_OUTPUT
+
+          # Garante que o JSON existe mesmo se o script falhou parcialmente
+          if [ ! -f "${{ github.workspace }}/reports/endpoint-report.json" ]; then
+            echo '{"generated_at":"unknown","total_endpoints":0,"total_ok":0,"total_fail":0,"all_healthy":false,"exchanges":{}}' \
+              > ${{ github.workspace }}/reports/endpoint-report.json
+            echo "## ❌ Script PHP falhou antes de gerar o relatório" \
+              > ${{ github.workspace }}/reports/endpoint-report.md
+          fi
+
+          exit ${PHP_EXIT}
+        continue-on-error: true
+
+      # ── 4. Lê o JSON e seta outputs para os steps seguintes ───────────────────
+      - name: Parse report
         id: parse
-        if: steps.healthcheck.outputs.exit_code != '0'
+        if: always()
         run: |
-          # Extrai a linha FAILED_EXCHANGES= do output do script PHP
-          FAILED=$(grep "^FAILED_EXCHANGES=" check-output.txt | cut -d'=' -f2-)
-          echo "failed_exchanges=${FAILED}" >> $GITHUB_OUTPUT
+          REPORT="${{ github.workspace }}/reports/endpoint-report.json"
 
-          # Conta total de falhas no JSON gerado
-          FAIL_COUNT=$(php -r "
-            \$r = json_decode(file_get_contents('endpoint-report.json'), true);
-            echo \$r['total_fail'] ?? 0;
+          FAIL_COUNT=$(php -r "\$r=json_decode(file_get_contents('${REPORT}'),true); echo \$r['total_fail'] ?? 0;")
+          TOTAL=$(php -r "\$r=json_decode(file_get_contents('${REPORT}'),true); echo \$r['total_endpoints'] ?? 0;")
+          OK_COUNT=$(php -r "\$r=json_decode(file_get_contents('${REPORT}'),true); echo \$r['total_ok'] ?? 0;")
+          GENERATED=$(php -r "\$r=json_decode(file_get_contents('${REPORT}'),true); echo \$r['generated_at'] ?? 'unknown';")
+
+          # Lista nomes das exchanges com falha
+          FAILED_NAMES=$(php -r "
+            \$r = json_decode(file_get_contents('${REPORT}'), true);
+            \$failed = array_filter(\$r['exchanges'] ?? [], fn(\$e) => !\$e['healthy']);
+            echo implode(', ', array_column(\$failed, 'name'));
           ")
-          echo "fail_count=${FAIL_COUNT}" >> $GITHUB_OUTPUT
 
-          TOTAL=$(php -r "
-            \$r = json_decode(file_get_contents('endpoint-report.json'), true);
-            echo \$r['total_endpoints'] ?? 0;
-          ")
-          echo "total_endpoints=${TOTAL}" >> $GITHUB_OUTPUT
+          echo "fail_count=${FAIL_COUNT}"     >> $GITHUB_OUTPUT
+          echo "total=${TOTAL}"               >> $GITHUB_OUTPUT
+          echo "ok_count=${OK_COUNT}"         >> $GITHUB_OUTPUT
+          echo "generated_at=${GENERATED}"    >> $GITHUB_OUTPUT
+          echo "failed_names=${FAILED_NAMES}" >> $GITHUB_OUTPUT
 
-      # ── 5. Upload dos relatórios como artefato ────────────────────────────────
+      # ── 5. Upload dos relatórios como artefato ─────────────────────────────────
       - name: Upload health report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: endpoint-health-report-${{ github.run_id }}
-          path: |
-            endpoint-report.json
-            endpoint-report.md
+          path: ${{ github.workspace }}/reports/
           retention-days: 30
 
-      # ── 6. Abre Issue automaticamente se houver falhas ────────────────────────
+      # ── 6. Sumário no GitHub Actions UI ───────────────────────────────────────
+      - name: Write job summary
+        if: always()
+        run: |
+          REPORT_MD="${{ github.workspace }}/reports/endpoint-report.md"
+          if [ -f "${REPORT_MD}" ]; then
+            cat "${REPORT_MD}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ❌ Relatório Markdown não encontrado" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # ── 7. Abre ou comenta Issue se houver falhas ──────────────────────────────
       - name: Open Issue on failure
         if: |
           steps.healthcheck.outputs.exit_code != '0' &&
           (github.event_name == 'schedule' || inputs.open_issue_on_failure == 'true')
         uses: actions/github-script@v7
+        env:
+          REPORT_PATH: ${{ github.workspace }}/reports/endpoint-report.json
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GENERATED_AT: ${{ steps.parse.outputs.generated_at }}
+          FAIL_COUNT: ${{ steps.parse.outputs.fail_count }}
+          TOTAL: ${{ steps.parse.outputs.total }}
+          OK_COUNT: ${{ steps.parse.outputs.ok_count }}
+          FAILED_NAMES: ${{ steps.parse.outputs.failed_names }}
+          RUN_NUMBER: ${{ github.run_number }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
 
-            // Lê o relatório JSON gerado pelo script PHP
-            const report = JSON.parse(fs.readFileSync('endpoint-report.json', 'utf8'));
+            // ── Lê o relatório (já garantido existir no step 3) ──────────────
+            const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, 'utf8'));
 
-            // Monta lista de exchanges com falha e seus endpoints problemáticos
-            const failedExchanges = Object.values(report.exchanges).filter(ex => !ex.healthy);
+            const failedExchanges = Object.values(report.exchanges || {}).filter(ex => !ex.healthy);
 
+            // ── Monta bloco de detalhes por exchange ─────────────────────────
             let failedDetails = '';
             for (const ex of failedExchanges) {
               failedDetails += `\n### ❌ ${ex.name} (API \`${ex.api_version}\`)\n`;
-              failedDetails += `> Docs: ${ex.docs_url}\n\n`;
+              failedDetails += `> 📖 Docs: ${ex.docs_url}\n\n`;
               failedDetails += `| Endpoint | URL | Erro | Latência |\n|---|---|---|---|\n`;
-
-              for (const [name, ep] of Object.entries(ex.endpoints)) {
+              for (const [name, ep] of Object.entries(ex.endpoints || {})) {
                 if (!ep.ok) {
-                  failedDetails += `| \`${name}\` | \`${ep.url}\` | \`${ep.error ?? 'resposta inválida'}\` | ${ep.latency_ms}ms |\n`;
+                  const errMsg = ep.error ?? 'resposta inválida / JSON malformado';
+                  failedDetails += `| \`${name}\` | \`${ep.url}\` | \`${errMsg}\` | ${ep.latency_ms}ms |\n`;
                 }
               }
+              failedDetails += '\n';
             }
 
-            // Monta o corpo da Issue
-            const body = `## 🩺 Exchange API Health Check — Falhas Detectadas
+            if (!failedDetails) {
+              failedDetails = '_Nenhum detalhe disponível — verifique os logs da run._\n';
+            }
 
-            > **Detectado em:** ${report.generated_at}
-            > **Run:** [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            const runUrl      = process.env.RUN_URL;
+            const generatedAt = process.env.GENERATED_AT;
+            const failCount   = process.env.FAIL_COUNT;
+            const total       = process.env.TOTAL;
+            const okCount     = process.env.OK_COUNT;
+            const failedNames = process.env.FAILED_NAMES;
+            const runNumber   = process.env.RUN_NUMBER;
 
-            ---
+            // ── Corpo da Issue ────────────────────────────────────────────────
+            const issueBody = [
+              `## 🩺 Exchange API Health Check — Falhas Detectadas`,
+              ``,
+              `> **Detectado em:** ${generatedAt}`,
+              `> **Run:** [#${runNumber}](${runUrl})`,
+              ``,
+              `---`,
+              ``,
+              `## Resumo`,
+              ``,
+              `| Métrica | Valor |`,
+              `|---|---|`,
+              `| Endpoints testados | ${total} |`,
+              `| Endpoints OK | ${okCount} |`,
+              `| **Endpoints com falha** | **${failCount}** |`,
+              `| Exchanges afetadas | ${failedExchanges.length} |`,
+              ``,
+              `---`,
+              ``,
+              `## Exchanges com Problemas`,
+              ``,
+              failedDetails,
+              `---`,
+              ``,
+              `## O que pode ter acontecido?`,
+              ``,
+              `- A exchange atualizou a versão da API (endpoint movido ou descontinuado)`,
+              `- A URL base ou parâmetros necessários mudaram`,
+              `- A exchange está em manutenção temporária`,
+              `- Rate limit atingido durante o teste (falso positivo — verifique o próximo run)`,
+              ``,
+              `## Como corrigir`,
+              ``,
+              `1. Acesse os docs linkados acima e verifique se o endpoint mudou`,
+              `2. Atualize o \`*Config.php\` da exchange afetada em \`src/Exchanges/{Name}/\``,
+              `3. Atualize também o script \`scripts/check-endpoints.php\` se necessário`,
+              `4. Abra um PR com a correção e feche esta Issue`,
+              ``,
+              `---`,
+              ``,
+              `> 📎 [Relatório completo nos artefatos da run](${runUrl})`,
+            ].join('\n');
 
-            ## Resumo
-
-            | Métrica | Valor |
-            |---|---|
-            | Endpoints testados | ${report.total_endpoints} |
-            | Endpoints OK | ${report.total_ok} |
-            | **Endpoints com falha** | **${report.total_fail}** |
-            | Exchanges afetadas | ${failedExchanges.length} |
-
-            ---
-
-            ## Exchanges com Problemas
-            ${failedDetails}
-
-            ---
-
-            ## O que pode ter acontecido?
-
-            - A exchange atualizou a versão da API (endpoint movido ou descontinuado)
-            - A URL base ou parâmetros necessários mudaram
-            - A exchange está em manutenção temporária
-            - Rate limit foi atingido durante o teste (falso positivo — verifique o próximo run)
-
-            ## Como corrigir
-
-            1. Acesse os docs linkados acima e verifique se o endpoint mudou
-            2. Atualize o \`*Config.php\` da exchange afetada em \`src/Exchanges/{Name}/\`
-            3. Atualize também o script \`scripts/check-endpoints.php\` se necessário
-            4. Abra um PR com a correção
-
-            ---
-
-            > 📎 Relatório completo disponível nos [artefatos da run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            `;
-
-            // Verifica se já existe uma Issue aberta com o mesmo título (evita duplicatas)
-            const existingIssues = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo:  context.repo.repo,
-              state: 'open',
-              labels: 'api-health,automated',
+            // ── Verifica Issues abertas existentes (evita duplicatas) ─────────
+            const existing = await github.rest.issues.listForRepo({
+              owner:  context.repo.owner,
+              repo:   context.repo.repo,
+              state:  'open',
+              labels: 'api-health',
             });
 
-            const alreadyOpen = existingIssues.data.some(i =>
+            const openIssue = existing.data.find(i =>
               i.title.includes('Exchange API Health Check')
             );
 
-            if (alreadyOpen) {
-              console.log('Issue já existe aberta — adicionando comentário.');
-              const issue = existingIssues.data.find(i => i.title.includes('Exchange API Health Check'));
+            if (openIssue) {
+              core.info(`Issue #${openIssue.number} já existe — adicionando comentário.`);
               await github.rest.issues.createComment({
-                owner:    context.repo.owner,
-                repo:     context.repo.repo,
-                issue_number: issue.number,
-                body: `### 🔄 Nova falha detectada em ${report.generated_at}\n\n${failedDetails}`,
+                owner:        context.repo.owner,
+                repo:         context.repo.repo,
+                issue_number: openIssue.number,
+                body: [
+                  `### 🔄 Nova falha detectada — ${generatedAt}`,
+                  ``,
+                  `> [Run #${runNumber}](${runUrl})`,
+                  ``,
+                  failedDetails,
+                ].join('\n'),
               });
             } else {
-              console.log('Abrindo nova Issue.');
+              core.info('Abrindo nova Issue.');
               await github.rest.issues.create({
                 owner:  context.repo.owner,
                 repo:   context.repo.repo,
-                title:  `🚨 Exchange API Health Check — ${failedExchanges.map(e => e.name).join(', ')} com falhas (${report.generated_at})`,
-                body:   body,
+                title:  `🚨 Exchange API Health Check — ${failedNames} com falhas (${generatedAt})`,
+                body:   issueBody,
                 labels: ['api-health', 'automated', 'bug'],
               });
             }
 
-      # ── 7. Sumário no GitHub Actions UI ──────────────────────────────────────
-      - name: Write job summary
-        if: always()
-        run: |
-          if [ -f endpoint-report.md ]; then
-            cat endpoint-report.md >> $GITHUB_STEP_SUMMARY
-          else
-            echo "## ❌ Relatório não gerado" >> $GITHUB_STEP_SUMMARY
-            echo "Verifique os logs da etapa anterior." >> $GITHUB_STEP_SUMMARY
-          fi
-
-      # ── 8. Falha o job se houve erros (visível no histórico de Actions) ───────
-      - name: Fail if endpoints broken
+      # ── 8. Falha o job visivelmente se houve erros ─────────────────────────────
+      - name: Fail job if endpoints broken
         if: steps.healthcheck.outputs.exit_code != '0'
         run: |
           echo "❌ ${{ steps.parse.outputs.fail_count }} endpoint(s) falharam."
-          echo "   Exchanges afetadas: ${{ steps.parse.outputs.failed_exchanges }}"
+          echo "   Exchanges afetadas: ${{ steps.parse.outputs.failed_names }}"
           exit 1
