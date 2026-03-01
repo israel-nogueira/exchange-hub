@@ -2,14 +2,13 @@
 
 /**
  * ══════════════════════════════════════════════════════
- *  EXEMPLO DE USO — Exchange PHP Integration
+ *  EXEMPLO DE USO — Exchange Hub PHP
  * ══════════════════════════════════════════════════════
  */
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-use Exchanges\Core\ExchangeManager;
-use Exchanges\DTOs\OrderDTO;
+use IsraelNogueira\ExchangeHub\Core\ExchangeManager;
 
 // ─── 1. Instancia a FakeExchange (sem precisar de API) ───────────────────────
 $exchange = ExchangeManager::make('fake', [
@@ -45,10 +44,10 @@ echo "\n";
 // ─── 6. Cria ordem MARKET ────────────────────────────────────────────────────
 echo "📦 Criando ordem MARKET BUY 0.001 BTC...\n";
 $order = $exchange->createOrder(
-    symbol:    'BTCUSDT',
-    side:      'BUY',
-    type:      'MARKET',
-    quantity:  0.001,
+    symbol:   'BTCUSDT',
+    side:     'BUY',
+    type:     'MARKET',
+    quantity: 0.001,
 );
 echo "   ID:     {$order->orderId}\n";
 echo "   Status: {$order->status}\n";
@@ -58,11 +57,11 @@ echo "   Preço:  $ " . number_format($order->avgPrice, 2) . "\n\n";
 $limitPrice = $ticker->price * 0.98; // 2% abaixo do mercado
 echo "📦 Criando ordem LIMIT BUY 0.01 BTC @ $" . number_format($limitPrice, 2) . "...\n";
 $limitOrder = $exchange->createOrder(
-    symbol:    'BTCUSDT',
-    side:      'BUY',
-    type:      'LIMIT',
-    quantity:  0.01,
-    price:     $limitPrice,
+    symbol:   'BTCUSDT',
+    side:     'BUY',
+    type:     'LIMIT',
+    quantity: 0.01,
+    price:    $limitPrice,
 );
 echo "   ID:     {$limitOrder->orderId}\n";
 echo "   Status: {$limitOrder->status}\n\n";
@@ -135,13 +134,61 @@ echo "\n";
 
 echo "✅ Tudo funcionando com FakeExchange — nenhuma API necessária!\n";
 
-// ─── Usando Binance (quando tiver credenciais) ────────────────────────────────
+// ─── Exemplos com exchanges reais (descomentar quando tiver credenciais) ──────
+
 /*
+// Binance
 $binance = ExchangeManager::make('binance', [
     'api_key'    => 'SUA_API_KEY',
-    'api_secret' => 'SUA_SECRET_KEY',
+    'api_secret' => 'SUA_API_SECRET',
+]);
+$ticker = $binance->getTicker('BTCUSDT'); // mesma interface!
+echo $ticker->price;
+
+// Binance Testnet
+$binanceTest = ExchangeManager::make('binance', [
+    'api_key'    => 'SUA_API_KEY_TESTNET',
+    'api_secret' => 'SUA_API_SECRET_TESTNET',
+    'testnet'    => true,
 ]);
 
-$ticker = $binance->getTicker('BTCUSDT');  // mesma interface!
-echo $ticker->price;
+// OKX (requer passphrase)
+$okx = ExchangeManager::make('okx', [
+    'api_key'    => 'SUA_API_KEY',
+    'api_secret' => 'SUA_API_SECRET',
+    'passphrase' => 'SUA_PASSPHRASE',
+]);
+
+// OKX Demo Trading
+$okxDemo = ExchangeManager::make('okx', [
+    'api_key'    => 'SUA_API_KEY',
+    'api_secret' => 'SUA_API_SECRET',
+    'passphrase' => 'SUA_PASSPHRASE',
+    'demo'       => true,
+]);
+
+// KuCoin (requer passphrase)
+$kucoin = ExchangeManager::make('kucoin', [
+    'api_key'    => 'SUA_API_KEY',
+    'api_secret' => 'SUA_API_SECRET',
+    'passphrase' => 'SUA_PASSPHRASE',
+]);
+
+// Mercado Bitcoin (OAuth2 — só informar api_key e api_secret)
+$mb = ExchangeManager::make('mercadobitcoin', [
+    'api_key'    => 'SUA_API_KEY',
+    'api_secret' => 'SUA_API_SECRET',
+]);
+
+// Bybit Testnet
+$bybitTest = ExchangeManager::make('bybit', [
+    'api_key'    => 'SUA_API_KEY',
+    'api_secret' => 'SUA_API_SECRET',
+    'testnet'    => true,
+]);
+
+// Listar todas as exchanges disponíveis
+$available = ExchangeManager::available();
+// ['fake', 'binance', 'coinbase', 'okx', 'bybit', 'kraken', 'kucoin',
+//  'gateio', 'bitfinex', 'mercadobitcoin', 'mexc', 'bitget', 'gemini', 'bitstamp']
 */
