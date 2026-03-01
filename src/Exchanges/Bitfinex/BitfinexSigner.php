@@ -1,23 +1,25 @@
 <?php
 namespace IsraelNogueira\ExchangeHub\Exchanges\Bitfinex;
-
 class BitfinexSigner
 {
     public function __construct(
         private string $apiKey,
-        private string $apiSecret
+        private string $apiSecret,
     ) {}
-
-    public function getHeaders(string $method, string $path, string $body = ''): array
+    /**
+     * Bitfinex v2 authentication:
+     * signature = HMAC-SHA384(/api/v2/auth/{endpoint}{nonce}{body})
+     */
+    public function getHeaders(string $path, string $body = ''): array
     {
-        $ts  = (string)(int)(microtime(true) * 1000);
-        $str = $ts . $method . $path . $body;
-        $sig = hash_hmac('sha256', $str, $this->apiSecret);
+        $nonce   = (string)(int)(microtime(true) * 1000000);
+        $payload = '/api' . $path . $nonce . $body;
+        $sig     = hash_hmac('sha384', $payload, $this->apiSecret);
         return [
-            'X-API-KEY'   => $this->apiKey,
-            'X-SIGNATURE' => $sig,
-            'X-TIMESTAMP' => $ts,
-            'Content-Type'=> 'application/json',
+            'bfx-nonce'     => $nonce,
+            'bfx-apikey'    => $this->apiKey,
+            'bfx-signature' => $sig,
+            'Content-Type'  => 'application/json',
         ];
     }
 }

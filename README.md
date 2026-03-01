@@ -1,96 +1,32 @@
-# 🏦 PHP Exchange Integration
+# 🔁 Exchange Hub — PHP
 
-Uma biblioteca PHP unificada para integração com as principais exchanges de criptomoedas do mundo. Independente de qual exchange você use — Binance, Kraken, Mercado Bitcoin ou uma FakeExchange para testes — a interface é sempre a mesma. Você escreve o código uma vez e troca a exchange com uma linha.
+Biblioteca PHP unificada para integração com múltiplas exchanges de criptomoedas.  
+Você escreve o código uma vez e troca a exchange com uma linha.
 
-A biblioteca abstrai completamente as diferenças de autenticação, formato de resposta, endpoints e comportamentos específicos de cada exchange. Cada exchange é um módulo isolado com seus próprios arquivos de configuração, normalização, assinatura e logs. Os retornos são sempre objetos DTO padronizados, independente da fonte.
+A biblioteca abstrai completamente as diferenças de autenticação, formato de resposta, endpoints e comportamentos de cada exchange. Os retornos são sempre objetos DTO padronizados, independente da fonte.
 
-A **FakeExchange** permite desenvolvimento e testes completos sem necessidade de nenhuma API key, com preços dinâmicos simulados, execução automática de ordens e persistência total em JSON local.
+A **FakeExchange** permite desenvolvimento e testes completos sem necessidade de nenhuma API key.
 
 ---
 
 ## 📦 Exchanges Suportadas
 
-| Exchange | Suporte | Tipo | Região |
+| Exchange | Status | Autenticação | Região |
 |---|---|---|---|
-| **FakeExchange** | ✅ Implementada | Mock / Testes | — |
-| **Binance** | 🔜 Em breve | Spot + Futures + Margin | Global |
-| **Coinbase Advanced** | 🔜 Em breve | Spot + Futures | EUA |
-| **OKX** | 🔜 Em breve | Spot + Futures + Options | Global |
-| **Bybit** | 🔜 Em breve | Spot + Futures + Options | Dubai |
-| **Kraken** | 🔜 Em breve | Spot + Margin | EUA |
-| **KuCoin** | 🔜 Em breve | Spot + Futures + Margin | Seychelles |
-| **Gate.io** | 🔜 Em breve | Spot + Futures + Options | Cayman |
-| **Bitfinex** | 🔜 Em breve | Spot + Margin + Funding | BVI |
-| **Mercado Bitcoin** | 🔜 Em breve | Spot + BRL | Brasil |
-| **MEXC** | 🔜 Em breve | Spot + Futures | Seychelles |
-| **Bitget** | 🔜 Em breve | Spot + Futures + Copy | Seychelles |
-| **Gemini** | 🔜 Em breve | Spot + OTC | EUA |
-| **Bitstamp** | 🔜 Em breve | Spot + EUR/USD | Luxemburgo |
-
----
-
-## 🗂️ Estrutura de Diretórios
-
-```
-src/
-├── Contracts/              # Interfaces globais
-│   ├── ExchangeInterface.php
-│   └── StorageInterface.php
-├── Core/
-│   ├── AbstractExchange.php    # Base HTTP, sign, helpers
-│   └── ExchangeManager.php     # Factory — ::make('binance', $config)
-├── DTOs/                   # Objetos de retorno padronizados
-│   ├── TickerDTO.php
-│   ├── OrderBookDTO.php
-│   ├── OrderDTO.php
-│   ├── TradeDTO.php
-│   ├── BalanceDTO.php
-│   ├── CandleDTO.php
-│   ├── DepositDTO.php
-│   ├── WithdrawDTO.php
-│   └── ExchangeInfoDTO.php
-├── Exceptions/             # Erros tipados
-│   └── ExchangeException.php
-├── Storage/
-│   └── JsonStorage.php     # Leitura/escrita atômica de JSON
-├── Traits/                 # (futuro) HasSpotTrading, HasMarketData...
-├── Http/                   # (futuro) HttpClient, RequestSigner
-└── Exchanges/
-    ├── Fake/               # ✅ Implementada
-    │   ├── FakeExchange.php
-    │   ├── FakeConfig.php
-    │   ├── FakeNormalizer.php
-    │   ├── FakePriceEngine.php
-    │   ├── FakeOrderMatcher.php
-    │   ├── FakeLogs.php
-    │   └── data/
-    │       ├── market/     symbols.json, tickers.json, trades.json, candles/
-    │       ├── account/    balances.json, deposit_history.json, withdraw_history.json
-    │       └── trading/    open_orders.json, order_history.json, my_trades.json
-    ├── Binance/            # Exchange.php, Config.php, Normalizer.php, Signer.php, Logs.php
-    ├── Coinbase/
-    ├── Okx/
-    ├── Bybit/
-    ├── Kraken/
-    ├── Kucoin/
-    ├── Gateio/
-    ├── Bitfinex/
-    ├── MercadoBitcoin/
-    ├── Mexc/
-    ├── Bitget/
-    ├── Gemini/
-    └── Bitstamp/
-```
-
----
-
-## ⚙️ Instalação
-
-```bash
-composer install
-```
-
-Requer **PHP >= 8.1**.
+| **FakeExchange** | ✅ Completa | — | — |
+| **Binance** | ✅ Completa | HMAC-SHA256 | Global |
+| **OKX** | ✅ Completa | HMAC-SHA256 + passphrase | Global |
+| **Bybit** | ✅ Completa | HMAC-SHA256 | Dubai |
+| **Kraken** | ✅ Completa | HMAC-SHA512 | EUA |
+| **KuCoin** | ✅ Completa | HMAC-SHA256 + passphrase | Seychelles |
+| **Coinbase Advanced** | ✅ Completa | HMAC-SHA256 | EUA |
+| **Mercado Bitcoin** | ✅ Completa | OAuth2 Bearer | Brasil |
+| **Gate.io** | ✅ Completa | HMAC-SHA512 | Cayman |
+| **MEXC** | ✅ Completa | HMAC-SHA256 | Seychelles |
+| **Bitget** | ✅ Completa | HMAC-SHA256 + passphrase | Seychelles |
+| **Gemini** | ✅ Completa | HMAC-SHA384 (payload) | EUA |
+| **Bitstamp** | ✅ Completa | HMAC-SHA256 | Luxemburgo |
+| **Bitfinex** | ✅ Completa | HMAC-SHA384 | BVI |
 
 ---
 
@@ -101,7 +37,7 @@ Requer **PHP >= 8.1**.
 ```php
 require 'vendor/autoload.php';
 
-use Exchanges\Core\ExchangeManager;
+use IsraelNogueira\ExchangeHub\Core\ExchangeManager;
 
 // FakeExchange — sem API, dados mockados, persistência em JSON local
 $exchange = ExchangeManager::make('fake', [
@@ -126,6 +62,13 @@ $exchange = ExchangeManager::make('mercadobitcoin', [
     'api_key'    => 'SUA_API_KEY',
     'api_secret' => 'SUA_API_SECRET',
 ]);
+
+// Testnet (Binance / Bybit)
+$exchange = ExchangeManager::make('binance', [
+    'api_key'    => 'SUA_API_KEY',
+    'api_secret' => 'SUA_API_SECRET',
+    'testnet'    => true,
+]);
 ```
 
 ### Operações
@@ -146,17 +89,12 @@ $balances = $exchange->getBalances();
 $address  = $exchange->getDepositAddress('BTC', 'BEP20');
 $withdraw = $exchange->withdraw('USDT', '0xEndereco...', 100.0);
 
-echo $balances['BTC']->free;   // 1.5
-echo $address->address;        // 0xFake...
-echo $withdraw->status;        // CONFIRMED
-
 // Trading
 $order = $exchange->createOrder('BTCUSDT', 'BUY', 'LIMIT', 0.01, 95000.00);
 $exchange->cancelOrder('BTCUSDT', $order->orderId);
 $trades = $exchange->getMyTrades('BTCUSDT');
 
-echo $order->orderId; // ORD-abc123...
-echo $order->status;  // OPEN | FILLED | CANCELLED
+echo $order->status; // OPEN | FILLED | CANCELLED
 ```
 
 ---
@@ -185,117 +123,61 @@ Seu código recebe sempre o mesmo objeto, independente da exchange
 
 ## 🔧 Funcionalidades por Exchange
 
+Legenda: ✅ implementado · ❌ não disponível na exchange
+
 ### 📊 Market Data
 
-| Função | Fake | Binance | Coinbase | OKX | Bybit | Kraken | KuCoin | Gate.io | Bitfinex | MB |
-|---|---|---|---|---|---|---|---|---|---|---|
-| `ping` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getServerTime` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getExchangeInfo` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getSymbols` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getTicker` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getTicker24h` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getAllTickers` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getOrderBook` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getRecentTrades` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getHistoricalTrades` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getCandles` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getAvgPrice` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
+| Função | Fake | Binance | OKX | Bybit | Kraken | KuCoin | Coinbase | MB | Gate.io | MEXC | Bitget | Gemini | Bitstamp | Bitfinex |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| `ping` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getServerTime` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getExchangeInfo` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getSymbols` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getTicker` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getTicker24h` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getAllTickers` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getOrderBook` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getRecentTrades` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getHistoricalTrades` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getCandles` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getAvgPrice` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ### 🔐 Account
 
-| Função | Fake | Binance | Coinbase | OKX | Bybit | Kraken | KuCoin | Gate.io | Bitfinex | MB |
-|---|---|---|---|---|---|---|---|---|---|---|
-| `getAccountInfo` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getBalances` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getBalance` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getCommissionRates` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getDepositAddress` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getDepositHistory` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getWithdrawHistory` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `withdraw` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
+| Função | Fake | Binance | OKX | Bybit | Kraken | KuCoin | Coinbase | MB | Gate.io | MEXC | Bitget | Gemini | Bitstamp | Bitfinex |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| `getAccountInfo` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getBalances` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getBalance` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getCommissionRates` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getDepositAddress` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getDepositHistory` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
+| `getWithdrawHistory` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `withdraw` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ### 📦 Trading
 
-| Função | Fake | Binance | Coinbase | OKX | Bybit | Kraken | KuCoin | Gate.io | Bitfinex | MB |
-|---|---|---|---|---|---|---|---|---|---|---|
-| `createOrder` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `cancelOrder` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `cancelAllOrders` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getOrder` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getOpenOrders` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getOrderHistory` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `getMyTrades` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `editOrder` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| `createOCOOrder` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
+| Função | Fake | Binance | OKX | Bybit | Kraken | KuCoin | Coinbase | MB | Gate.io | MEXC | Bitget | Gemini | Bitstamp | Bitfinex |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| `createOrder` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `cancelOrder` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `cancelAllOrders` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getOrder` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getOpenOrders` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getOrderHistory` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `getMyTrades` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `editOrder` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `createOCOOrder` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-### 🏦 Staking & Earn
+> **Nota `editOrder`:** Binance, KuCoin, Gate.io, MEXC, Gemini, Bitstamp e Mercado Bitcoin não têm edição nativa — a implementação cancela e recria automaticamente. OKX, Bybit e Bitget têm amend nativo. Bitfinex tem update nativo.
 
-| Função | Fake | Binance | Coinbase | OKX | Bybit | Kraken | KuCoin | Gate.io | Bitfinex | MB |
-|---|---|---|---|---|---|---|---|---|---|---|
-| `stakeAsset` | ✅ | 🔜 | ❌ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | ❌ |
-| `unstakeAsset` | ✅ | 🔜 | ❌ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | ❌ |
-| `getStakingPositions` | ✅ | 🔜 | ❌ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | ❌ |
-| `subscribeEarn` | ❌ | 🔜 | ❌ | 🔜 | 🔜 | ❌ | 🔜 | 🔜 | ❌ | ❌ |
-| `redeemEarn` | ❌ | 🔜 | ❌ | 🔜 | 🔜 | ❌ | 🔜 | 🔜 | ❌ | ❌ |
+### 🏦 Staking / Earn
 
-### 📈 Margin & Futures
-
-| Função | Fake | Binance | Coinbase | OKX | Bybit | Kraken | KuCoin | Gate.io | Bitfinex | MB |
-|---|---|---|---|---|---|---|---|---|---|---|
-| `getPositions` | ❌ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | ❌ |
-| `setLeverage` | ❌ | 🔜 | ❌ | 🔜 | 🔜 | ❌ | 🔜 | 🔜 | ❌ | ❌ |
-| `getFundingRate` | ❌ | 🔜 | 🔜 | 🔜 | 🔜 | ❌ | 🔜 | 🔜 | ❌ | ❌ |
-| `borrowMargin` | ❌ | 🔜 | ❌ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | ❌ |
-| `repayMargin` | ❌ | 🔜 | ❌ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | ❌ |
-| `closePosition` | ❌ | 🔜 | 🔜 | 🔜 | 🔜 | ❌ | 🔜 | 🔜 | ❌ | ❌ |
-| `setTradingStop` | ❌ | ❌ | ❌ | ❌ | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ |
-
-### 👥 Sub-Contas & Transferências
-
-| Função | Fake | Binance | Coinbase | OKX | Bybit | Kraken | KuCoin | Gate.io | Bitfinex | MB |
-|---|---|---|---|---|---|---|---|---|---|---|
-| `getSubAccounts` | ✅ | 🔜 | ❌ | 🔜 | 🔜 | ❌ | 🔜 | 🔜 | ❌ | ❌ |
-| `internalTransfer` | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | ❌ | 🔜 | 🔜 | ❌ | ❌ |
-| `createSubAccount` | ❌ | 🔜 | ❌ | 🔜 | 🔜 | ❌ | 🔜 | 🔜 | ❌ | ❌ |
-
-### 🔄 Convert & Swap
-
-| Função | Fake | Binance | Coinbase | OKX | Bybit | Kraken | KuCoin | Gate.io | Bitfinex | MB |
-|---|---|---|---|---|---|---|---|---|---|---|
-| `convertDust` | ✅ | 🔜 | ❌ | 🔜 | ❌ | ❌ | ❌ | 🔜 | ❌ | ❌ |
-| `createConvert` | ❌ | 🔜 | 🔜 | 🔜 | 🔜 | ❌ | 🔜 | 🔜 | ❌ | ❌ |
-| `createFlashSwap` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | 🔜 | ❌ | ❌ |
-
-### 🤖 Ordens Avançadas & Bots
-
-| Função | Fake | Binance | Coinbase | OKX | Bybit | Kraken | KuCoin | Gate.io | Bitfinex | MB |
-|---|---|---|---|---|---|---|---|---|---|---|
-| `createBatchOrders` | ❌ | ❌ | ❌ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | ❌ | ❌ |
-| `createAlgoOrder` | ❌ | ❌ | ❌ | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| `createGridStrategy` | ❌ | ❌ | ❌ | 🔜 | ❌ | ❌ | 🔜 | 🔜 | ❌ | ❌ |
-| `createCopyTrade` | ❌ | ❌ | ❌ | ❌ | 🔜 | ❌ | ❌ | 🔜 | ❌ | ❌ |
-| `cancelAllAfter` | ❌ | ❌ | ❌ | ❌ | ❌ | 🔜 | ❌ | ❌ | ❌ | ❌ |
-
----
-
-## 🔐 Métodos de Assinatura por Exchange
-
-| Exchange | Método | Observação |
-|---|---|---|
-| **FakeExchange** | — | Sem autenticação |
-| **Binance** | HMAC-SHA256 | Timestamp + query string assinados |
-| **Coinbase** | JWT (EC P-256) | Token gerado por request |
-| **OKX** | HMAC-SHA256 | Passphrase obrigatória no header |
-| **Bybit** | HMAC-SHA256 | Timestamp no header |
-| **Kraken** | HMAC-SHA512 | Nonce único por request |
-| **KuCoin** | HMAC-SHA256 | Passphrase obrigatória no header |
-| **Bitfinex** | HMAC-SHA384 | Payload em base64 no header |
-| **Mercado Bitcoin** | OAuth2 + JWT | Token com expiração renovável |
-| **Gemini** | HMAC-SHA384 | Payload base64 no header |
-| **Bitstamp** | HMAC-SHA256 | API Key no header X-Auth |
-| **MEXC** | HMAC-SHA256 | Similar à Binance |
-| **Bitget** | HMAC-SHA256 | Passphrase obrigatória no header |
+| Função | Fake | Binance | OKX | Bybit | Kraken | KuCoin | Coinbase | MB | Gate.io | MEXC | Bitget | Gemini | Bitstamp | Bitfinex |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| `stakeAsset` | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `unstakeAsset` | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `getStakingPositions` | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -304,17 +186,61 @@ Seu código recebe sempre o mesmo objeto, independente da exchange
 | Comportamento | Descrição |
 |---|---|
 | **Preço dinâmico** | Variação aleatória de ±0.5% a cada chamada de `getTicker` |
-| **Spread simulado** | Bid/Ask gerados com spread entre 0.05% e 0.15% |
+| **Spread simulado** | Bid/Ask com spread entre 0.05% e 0.15% |
 | **Ordem Market** | Executa imediatamente ao preço corrente |
 | **Ordem Limit** | Fica em aberto e executa quando o preço cruza o limite |
-| **Ordem Stop** | Ativa ao cruzar o stop price, então executa como Limit |
-| **OCO** | Executa uma perna e cancela a outra automaticamente |
-| **Saldo** | Debitado/creditado em tempo real a cada trade executado |
+| **Ordem Stop** | Ativa ao cruzar o stop price, executa como Limit |
+| **OCO** | Duas ordens vinculadas — limit e stop-limit |
+| **Saldo** | Debitado/creditado em tempo real a cada trade |
 | **Lock de saldo** | Reserva o valor ao criar ordem, libera ao cancelar |
 | **Taxas** | Aplicadas em todo trade — maker/taker configurável (padrão 0.1%) |
-| **Candles** | Gerados sinteticamente e persistidos em JSON por par/intervalo |
+| **Candles** | Gerados sinteticamente e persistidos em JSON |
 | **Persistência** | Todo estado salvo em JSON local — sobrevive a restarts |
 | **Logs** | Todas as operações registradas em `fake_exchange.log` |
+| **Staking** | Lock de saldo, APY simulado de 5%, unstake disponível |
+
+---
+
+## 🗂️ Estrutura de Diretórios
+
+```
+src/
+├── Contracts/              # Interfaces globais
+├── Core/
+│   ├── AbstractExchange.php    # Base HTTP, sign, helpers
+│   └── ExchangeManager.php     # Factory — ::make('binance', $config)
+├── DTOs/                   # Objetos de retorno padronizados
+├── Enums/                  # OrderSide, OrderType, OrderStatus, etc.
+├── Exceptions/
+├── Http/                   # CurlHttpClient, ExchangeLogger
+├── Storage/                # JsonStorage
+├── Traits/                 # HasCandleCache, HasRateLimit, HasTestnet
+└── Exchanges/
+    ├── Fake/               # ✅ Engine completo de simulação
+    ├── Binance/            # ✅ Config / Signer / Normalizer / Exchange
+    ├── Okx/                # ✅
+    ├── Bybit/              # ✅
+    ├── Kraken/             # ✅
+    ├── Kucoin/             # ✅
+    ├── Coinbase/           # ✅
+    ├── MercadoBitcoin/     # ✅
+    ├── Gateio/             # ✅
+    ├── Mexc/               # ✅
+    ├── Bitget/             # ✅
+    ├── Gemini/             # ✅
+    ├── Bitstamp/           # ✅
+    └── Bitfinex/           # ✅
+```
+
+---
+
+## ⚙️ Instalação
+
+```bash
+composer install
+```
+
+Requer **PHP >= 8.1** e extensão `curl`.
 
 ---
 

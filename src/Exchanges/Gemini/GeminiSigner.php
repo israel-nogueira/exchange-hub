@@ -1,23 +1,25 @@
 <?php
 namespace IsraelNogueira\ExchangeHub\Exchanges\Gemini;
-
 class GeminiSigner
 {
     public function __construct(
         private string $apiKey,
-        private string $apiSecret
+        private string $apiSecret,
     ) {}
-
-    public function getHeaders(string $method, string $path, string $body = ''): array
+    public function getHeaders(string $endpoint, array $payload = []): array
     {
-        $ts  = (string)(int)(microtime(true) * 1000);
-        $str = $ts . $method . $path . $body;
-        $sig = hash_hmac('sha256', $str, $this->apiSecret);
+        $payload['request'] = $endpoint;
+        $payload['nonce']   = (string)(int)(microtime(true) * 1000);
+        $json      = json_encode($payload);
+        $b64       = base64_encode($json);
+        $sig       = hash_hmac('sha384', $b64, $this->apiSecret);
         return [
-            'X-API-KEY'   => $this->apiKey,
-            'X-SIGNATURE' => $sig,
-            'X-TIMESTAMP' => $ts,
-            'Content-Type'=> 'application/json',
+            'Content-Type'       => 'text/plain',
+            'Content-Length'     => '0',
+            'X-GEMINI-APIKEY'    => $this->apiKey,
+            'X-GEMINI-PAYLOAD'   => $b64,
+            'X-GEMINI-SIGNATURE' => $sig,
+            'Cache-Control'      => 'no-cache',
         ];
     }
 }
