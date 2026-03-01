@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       open_issue_on_failure:
-        description: 'Abrir Issue se houver falhas?'
+        description: 'Abrir Issue se houver falhas reais?'
         required: false
         default: 'true'
         type: boolean
@@ -23,11 +23,11 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      # ── 1. Checkout ────────────────────────────────────────────────────────────
+      # ── 1. Checkout ────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── 2. Setup PHP ───────────────────────────────────────────────────────────
+      # ── 2. Setup PHP ───────────────────────────────────────────────────────
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -35,30 +35,34 @@ jobs:
           extensions: curl, json
           coverage: none
 
-      # ── 3. Cria pasta de output e roda o health check ──────────────────────────
+      # ── 3. Roda o health check ─────────────────────────────────────────────
+      #
+      # O script PHP retorna:
+      #   exit 0  → tudo OK ou apenas bloqueios de datacenter conhecidos
+      #   exit 1  → há falhas REAIS (endpoints quebrados inesperadamente)
+      #
       - name: Run endpoint health check
         id: healthcheck
         run: |
           mkdir -p ${{ github.workspace }}/reports
 
-          # Passa o diretório de output como argumento para o script
           php scripts/check-endpoints.php ${{ github.workspace }}/reports
           PHP_EXIT=$?
 
           echo "exit_code=${PHP_EXIT}" >> $GITHUB_OUTPUT
 
-          # Garante que o JSON existe mesmo se o script falhou parcialmente
+          # Garante que o JSON existe mesmo se o PHP travou antes de salvar
           if [ ! -f "${{ github.workspace }}/reports/endpoint-report.json" ]; then
-            echo '{"generated_at":"unknown","total_endpoints":0,"total_ok":0,"total_fail":0,"all_healthy":false,"exchanges":{}}' \
+            echo '{"generated_at":"unknown","total_endpoints":0,"total_ok":0,"total_blocked":0,"total_fail":0,"all_healthy":false,"exchanges":{}}' \
               > ${{ github.workspace }}/reports/endpoint-report.json
-            echo "## ❌ Script PHP falhou antes de gerar o relatório" \
+            printf "## ❌ Script PHP falhou antes de gerar o relatório\n" \
               > ${{ github.workspace }}/reports/endpoint-report.md
           fi
 
           exit ${PHP_EXIT}
         continue-on-error: true
 
-      # ── 4. Lê o JSON e seta outputs para os steps seguintes ───────────────────
+      # ── 4. Lê o JSON e expõe os dados para os steps seguintes ──────────────
       - name: Parse report
         id: parse
         if: always()
@@ -66,24 +70,32 @@ jobs:
           REPORT="${{ github.workspace }}/reports/endpoint-report.json"
 
           FAIL_COUNT=$(php -r "\$r=json_decode(file_get_contents('${REPORT}'),true); echo \$r['total_fail'] ?? 0;")
+          BLOCKED=$(php -r "\$r=json_decode(file_get_contents('${REPORT}'),true); echo \$r['total_blocked'] ?? 0;")
           TOTAL=$(php -r "\$r=json_decode(file_get_contents('${REPORT}'),true); echo \$r['total_endpoints'] ?? 0;")
           OK_COUNT=$(php -r "\$r=json_decode(file_get_contents('${REPORT}'),true); echo \$r['total_ok'] ?? 0;")
           GENERATED=$(php -r "\$r=json_decode(file_get_contents('${REPORT}'),true); echo \$r['generated_at'] ?? 'unknown';")
 
-          # Lista nomes das exchanges com falha
           FAILED_NAMES=$(php -r "
             \$r = json_decode(file_get_contents('${REPORT}'), true);
             \$failed = array_filter(\$r['exchanges'] ?? [], fn(\$e) => !\$e['healthy']);
             echo implode(', ', array_column(\$failed, 'name'));
           ")
 
+          BLOCKED_NAMES=$(php -r "
+            \$r = json_decode(file_get_contents('${REPORT}'), true);
+            \$blocked = array_filter(\$r['exchanges'] ?? [], fn(\$e) => (\$e['datacenter_blocked'] ?? false) && \$e['summary']['fail'] === 0);
+            echo implode(', ', array_column(\$blocked, 'name'));
+          ")
+
           echo "fail_count=${FAIL_COUNT}"     >> $GITHUB_OUTPUT
+          echo "blocked=${BLOCKED}"           >> $GITHUB_OUTPUT
           echo "total=${TOTAL}"               >> $GITHUB_OUTPUT
           echo "ok_count=${OK_COUNT}"         >> $GITHUB_OUTPUT
           echo "generated_at=${GENERATED}"    >> $GITHUB_OUTPUT
           echo "failed_names=${FAILED_NAMES}" >> $GITHUB_OUTPUT
+          echo "blocked_names=${BLOCKED_NAMES}" >> $GITHUB_OUTPUT
 
-      # ── 5. Upload dos relatórios como artefato ─────────────────────────────────
+      # ── 5. Upload dos relatórios como artefato ─────────────────────────────
       - name: Upload health report
         uses: actions/upload-artifact@v4
         if: always()
@@ -92,7 +104,7 @@ jobs:
           path: ${{ github.workspace }}/reports/
           retention-days: 30
 
-      # ── 6. Sumário no GitHub Actions UI ───────────────────────────────────────
+      # ── 6. Sumário no GitHub Actions UI ────────────────────────────────────
       - name: Write job summary
         if: always()
         run: |
@@ -103,48 +115,63 @@ jobs:
             echo "## ❌ Relatório Markdown não encontrado" >> $GITHUB_STEP_SUMMARY
           fi
 
-      # ── 7. Abre ou comenta Issue se houver falhas ──────────────────────────────
-      - name: Open Issue on failure
+          # Adiciona nota sobre bloqueios de datacenter se houver
+          if [ "${{ steps.parse.outputs.blocked_names }}" != "" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "---" >> $GITHUB_STEP_SUMMARY
+            echo "### ℹ️ Nota sobre bloqueios geográficos" >> $GITHUB_STEP_SUMMARY
+            echo "As exchanges **${{ steps.parse.outputs.blocked_names }}** bloqueiam IPs de provedores cloud (AWS/GCP/Azure)." >> $GITHUB_STEP_SUMMARY
+            echo "Isso é **esperado e não é um bug** — teste localmente com IP residencial para validar essas integrações." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # ── 7. Abre Issue apenas para falhas REAIS ─────────────────────────────
+      #
+      # Bloqueios de datacenter (Binance 451, Bybit 403, Coinbase 403)
+      # NÃO abrem Issue — são comportamentos conhecidos e documentados.
+      #
+      - name: Open Issue on real failures
         if: |
           steps.healthcheck.outputs.exit_code != '0' &&
+          steps.parse.outputs.fail_count != '0' &&
           (github.event_name == 'schedule' || inputs.open_issue_on_failure == 'true')
         uses: actions/github-script@v7
         env:
-          REPORT_PATH: ${{ github.workspace }}/reports/endpoint-report.json
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPORT_PATH:  ${{ github.workspace }}/reports/endpoint-report.json
+          RUN_URL:      ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GENERATED_AT: ${{ steps.parse.outputs.generated_at }}
-          FAIL_COUNT: ${{ steps.parse.outputs.fail_count }}
-          TOTAL: ${{ steps.parse.outputs.total }}
-          OK_COUNT: ${{ steps.parse.outputs.ok_count }}
+          FAIL_COUNT:   ${{ steps.parse.outputs.fail_count }}
+          TOTAL:        ${{ steps.parse.outputs.total }}
+          OK_COUNT:     ${{ steps.parse.outputs.ok_count }}
+          BLOCKED:      ${{ steps.parse.outputs.blocked }}
           FAILED_NAMES: ${{ steps.parse.outputs.failed_names }}
-          RUN_NUMBER: ${{ github.run_number }}
+          RUN_NUMBER:   ${{ github.run_number }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
 
-            // ── Lê o relatório (já garantido existir no step 3) ──────────────
             const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, 'utf8'));
 
-            const failedExchanges = Object.values(report.exchanges || {}).filter(ex => !ex.healthy);
+            // Apenas exchanges com falhas REAIS (não bloqueios de datacenter)
+            const failedExchanges = Object.values(report.exchanges || {})
+              .filter(ex => !ex.healthy);
 
-            // ── Monta bloco de detalhes por exchange ─────────────────────────
             let failedDetails = '';
             for (const ex of failedExchanges) {
               failedDetails += `\n### ❌ ${ex.name} (API \`${ex.api_version}\`)\n`;
               failedDetails += `> 📖 Docs: ${ex.docs_url}\n\n`;
               failedDetails += `| Endpoint | URL | Erro | Latência |\n|---|---|---|---|\n`;
               for (const [name, ep] of Object.entries(ex.endpoints || {})) {
-                if (!ep.ok) {
-                  const errMsg = ep.error ?? 'resposta inválida / JSON malformado';
-                  failedDetails += `| \`${name}\` | \`${ep.url}\` | \`${errMsg}\` | ${ep.latency_ms}ms |\n`;
+                if (!ep.ok && !ep.blocked) {
+                  failedDetails += `| \`${name}\` | \`${ep.url}\` | \`${ep.error ?? 'resposta inválida'}\` | ${ep.latency_ms}ms |\n`;
                 }
               }
               failedDetails += '\n';
             }
 
             if (!failedDetails) {
-              failedDetails = '_Nenhum detalhe disponível — verifique os logs da run._\n';
+              core.info('Nenhuma falha real encontrada — abortando criação de Issue.');
+              return;
             }
 
             const runUrl      = process.env.RUN_URL;
@@ -152,12 +179,12 @@ jobs:
             const failCount   = process.env.FAIL_COUNT;
             const total       = process.env.TOTAL;
             const okCount     = process.env.OK_COUNT;
+            const blocked     = process.env.BLOCKED;
             const failedNames = process.env.FAILED_NAMES;
             const runNumber   = process.env.RUN_NUMBER;
 
-            // ── Corpo da Issue ────────────────────────────────────────────────
             const issueBody = [
-              `## 🩺 Exchange API Health Check — Falhas Detectadas`,
+              `## 🩺 Exchange API Health Check — Falhas Reais Detectadas`,
               ``,
               `> **Detectado em:** ${generatedAt}`,
               `> **Run:** [#${runNumber}](${runUrl})`,
@@ -169,13 +196,14 @@ jobs:
               `| Métrica | Valor |`,
               `|---|---|`,
               `| Endpoints testados | ${total} |`,
-              `| Endpoints OK | ${okCount} |`,
-              `| **Endpoints com falha** | **${failCount}** |`,
+              `| ✅ Endpoints OK | ${okCount} |`,
+              `| ⚠️ Bloqueados por datacenter (esperado) | ${blocked} |`,
+              `| ❌ **Falhas reais** | **${failCount}** |`,
               `| Exchanges afetadas | ${failedExchanges.length} |`,
               ``,
               `---`,
               ``,
-              `## Exchanges com Problemas`,
+              `## Exchanges com Falhas Reais`,
               ``,
               failedDetails,
               `---`,
@@ -184,22 +212,19 @@ jobs:
               ``,
               `- A exchange atualizou a versão da API (endpoint movido ou descontinuado)`,
               `- A URL base ou parâmetros necessários mudaram`,
-              `- A exchange está em manutenção temporária`,
-              `- Rate limit atingido durante o teste (falso positivo — verifique o próximo run)`,
+              `- A exchange está em manutenção temporária (falso positivo — aguarde o próximo run)`,
               ``,
               `## Como corrigir`,
               ``,
               `1. Acesse os docs linkados acima e verifique se o endpoint mudou`,
-              `2. Atualize o \`*Config.php\` da exchange afetada em \`src/Exchanges/{Name}/\``,
-              `3. Atualize também o script \`scripts/check-endpoints.php\` se necessário`,
+              `2. Atualize o \`*Config.php\` da exchange em \`src/Exchanges/{Name}/\``,
+              `3. Atualize também \`scripts/check-endpoints.php\` se necessário`,
               `4. Abra um PR com a correção e feche esta Issue`,
-              ``,
-              `---`,
               ``,
               `> 📎 [Relatório completo nos artefatos da run](${runUrl})`,
             ].join('\n');
 
-            // ── Verifica Issues abertas existentes (evita duplicatas) ─────────
+            // Evita duplicatas — comenta na Issue existente se já estiver aberta
             const existing = await github.rest.issues.listForRepo({
               owner:  context.repo.owner,
               repo:   context.repo.repo,
@@ -212,14 +237,13 @@ jobs:
             );
 
             if (openIssue) {
-              core.info(`Issue #${openIssue.number} já existe — adicionando comentário.`);
+              core.info(`Issue #${openIssue.number} já aberta — adicionando comentário.`);
               await github.rest.issues.createComment({
                 owner:        context.repo.owner,
                 repo:         context.repo.repo,
                 issue_number: openIssue.number,
                 body: [
                   `### 🔄 Nova falha detectada — ${generatedAt}`,
-                  ``,
                   `> [Run #${runNumber}](${runUrl})`,
                   ``,
                   failedDetails,
@@ -236,10 +260,26 @@ jobs:
               });
             }
 
-      # ── 8. Falha o job visivelmente se houve erros ─────────────────────────────
-      - name: Fail job if endpoints broken
-        if: steps.healthcheck.outputs.exit_code != '0'
+      # ── 8. Falha o job APENAS por falhas reais — bloqueios não contam ───────
+      - name: Fail job if real failures exist
+        if: |
+          steps.healthcheck.outputs.exit_code != '0' &&
+          steps.parse.outputs.fail_count != '0'
         run: |
-          echo "❌ ${{ steps.parse.outputs.fail_count }} endpoint(s) falharam."
+          echo "❌ ${{ steps.parse.outputs.fail_count }} endpoint(s) com falha real."
           echo "   Exchanges afetadas: ${{ steps.parse.outputs.failed_names }}"
+          echo ""
+          if [ "${{ steps.parse.outputs.blocked_names }}" != "" ]; then
+            echo "ℹ️  Bloqueios geográficos conhecidos (não são falhas): ${{ steps.parse.outputs.blocked_names }}"
+          fi
           exit 1
+
+      # ── 9. Sucesso explícito quando só há bloqueios de datacenter ───────────
+      - name: Report datacenter blocks (not failures)
+        if: |
+          steps.healthcheck.outputs.exit_code == '0' &&
+          steps.parse.outputs.blocked_names != ''
+        run: |
+          echo "✅ Nenhuma falha real detectada."
+          echo "ℹ️  Exchanges com bloqueio geográfico esperado: ${{ steps.parse.outputs.blocked_names }}"
+          echo "   Esses bloqueios são normais em ambientes de datacenter — não são bugs."
