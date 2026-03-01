@@ -500,6 +500,46 @@ Cada pasta de exchange contém:
 
 ---
 
+## ⚠️ Aviso Importante — Compatibilidade de APIs
+
+> **Esta biblioteca foi desenvolvida e testada contra as versões das APIs públicas disponíveis no momento de sua criação. Exchanges de criptomoedas atualizam seus endpoints, parâmetros de autenticação e formatos de resposta com frequência, sem aviso prévio.**
+
+**O que isso significa na prática:**
+
+- Os endpoints e a lógica de assinatura de cada exchange estão corretos para a versão da API utilizada durante o desenvolvimento
+- **Não há garantia** de que todas as integrações funcionem sem ajustes após atualizações das exchanges
+- Antes de usar em produção, **recomendamos fortemente** validar cada exchange individualmente com credenciais reais em ambiente de staging
+- A **FakeExchange** é estável e pode ser usada com segurança para desenvolvimento e testes em qualquer cenário
+
+**Checklist mínimo antes de produção por exchange:**
+- [ ] `ping()` retorna `true`
+- [ ] `getTicker('BTCUSDT')` retorna preço válido
+- [ ] `getBalances()` retorna saldos corretos
+- [ ] `createOrder()` em testnet (quando disponível) cria a ordem
+- [ ] `cancelOrder()` cancela a ordem corretamente
+
+---
+
+## 🐛 Reportar Bugs / Sugestões / Dúvidas
+
+Encontrou um bug? A API de alguma exchange mudou? Tem uma sugestão de melhoria ou dúvida sobre o uso?
+
+**Abra uma issue no GitHub:**
+
+👉 **[github.com/israel-nogueira/exchange-hub/issues](https://github.com/israel-nogueira/exchange-hub/issues)**
+
+Ao reportar um bug, por favor inclua:
+
+- A exchange afetada (`binance`, `okx`, etc.)
+- O método que falhou (`getTicker`, `createOrder`, etc.)
+- A mensagem de erro completa
+- A versão do PHP (`php -v`)
+- Se possível, o trecho de código que reproduz o problema
+
+Toda contribuição é bem-vinda — seja um fix de endpoint desatualizado, um novo normalizer, ou apenas uma dúvida que pode virar documentação. 🙏
+
+---
+
 ## 📄 Licença
 
 MIT — [Israel Nogueira](https://github.com/israel-nogueira)
